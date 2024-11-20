@@ -4,7 +4,7 @@ const rlz = @import("raylib-zig");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    
+
     const raylib_dep = b.dependency("raylib-zig", .{
         .target = target,
         .optimize = optimize,
@@ -34,13 +34,20 @@ pub fn build(b: *std.Build) !void {
         return;
     }
 
-    const exe = b.addExecutable(.{ .name = "ziggy_gd", .root_source_file = b.path("src/main.zig"), .optimize = optimize, .target = target });
+    const exe = b.addExecutable(.{ .name = "stinkray", .root_source_file = b.path("src/main.zig"), .optimize = optimize, .target = target });
 
     exe.linkLibrary(raylib_artifact);
     exe.root_module.addImport("raylib", raylib);
 
+    const znoise = b.dependency("znoise", .{});
+    exe.root_module.addImport("znoise", znoise.module("root"));
+    exe.linkLibrary(znoise.artifact("FastNoiseLite"));
+
     const run_cmd = b.addRunArtifact(exe);
-    const run_step = b.step("run", "Run ziggy_gd");
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    const run_step = b.step("run", "Run the app");
+
     run_step.dependOn(&run_cmd.step);
 
     b.installArtifact(exe);

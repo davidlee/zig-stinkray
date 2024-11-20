@@ -1,34 +1,22 @@
-// raylib-zig (c) Nikolas Wipper 2023
-
 const rl = @import("raylib");
 
+const logic = @import("logic.zig");
+const gfx = @import("graphics.zig");
+
+const std = @import("std");
+
 pub fn main() anyerror!void {
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    const screenWidth = 800;
-    const screenHeight = 450;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const alloc = gpa.allocator();
 
-    rl.initWindow(screenWidth, screenHeight, "raylib-zig [core] example - basic window");
-    defer rl.closeWindow(); // Close window and OpenGL context
-
-    rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
-
-    // Main game loop
-    while (!rl.windowShouldClose()) { // Detect window close button or ESC key
-        // Update
-        //----------------------------------------------------------------------------------
-        // TODO: Update your variables here
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        rl.beginDrawing();
-        defer rl.endDrawing();
-
-        rl.clearBackground(rl.Color.white);
-
-        rl.drawText("Congrats! You created your first window!", 190, 200, 20, rl.Color.light_gray);
-        //----------------------------------------------------------------------------------
+    defer {
+        _ = gpa.deinit();
     }
+
+    logic.init(alloc);
+
+    gfx.init(alloc);
+    gfx.startRunLoop(alloc); // calls logic.tick()
+    gfx.deinit();
+    logic.deinit();
 }
