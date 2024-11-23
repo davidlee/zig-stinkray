@@ -45,7 +45,7 @@ pub fn startRunLoop(alloc: std.mem.Allocator, world: *m.World) void {
 
 fn draw(world: *m.World) void {
     rl.clearBackground(rl.Color.dark_gray);
-    drawCells(t.cells);
+    drawCells(world.cells);
     drawPlayer(world.player);
 }
 
@@ -56,7 +56,7 @@ fn drawPlayer(player: *p.Player) void {
     rl.drawRectangle(x, y, CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
-fn drawCells(cells: t.Cells) void {
+fn drawCells(cells: *t.CellStore) void {
     const z = 0;
     for (cells.data[z], 0..) |ys, y| {
         for (ys, 0..) |cell, x| {

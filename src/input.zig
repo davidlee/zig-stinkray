@@ -11,7 +11,7 @@ const m = @import("main.zig");
 pub fn handleKeyboard(world: *m.World) void {
     inline for (MovementKeys) |x| {
         if (rl.isKeyDown(x[0])) {
-            world.player.moveTo(x[1]) catch {};
+            world.player.moveTo(world, x[1]) catch {};
         }
     }
 }
@@ -24,12 +24,11 @@ const MovementKeys = .{
 };
 
 pub fn handleMouse(world: *m.World) void {
-    _ = world;
     if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
         const px = vec.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
 
         const uvec = graphics.pxToCell(px);
-        var cell = terrain.getCellAtZYX(0, uvec.y, uvec.x);
+        var cell = world.cells.getCellAtZYX(0, uvec.y, uvec.x);
 
         const tile = switch (cell.tile) {
             .Empty => terrain.Tile{ .Solid = .Stone },

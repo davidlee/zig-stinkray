@@ -7,7 +7,7 @@ const terrain = @import("terrain.zig");
 const player = @import("player.zig");
 
 pub const World = struct {
-    // cell_store: terrain.Cells,
+    cells: *terrain.CellStore,
     player: *player.Player,
 };
 
@@ -20,14 +20,17 @@ pub fn main() anyerror!void {
     }
 
     const world = try alloc.create(World);
-    errdefer alloc.destroy(world);
+    defer alloc.destroy(world);
 
     const p = try player.init(alloc);
-    errdefer alloc.destroy(p);
+    defer alloc.destroy(p);
 
     world.player = p;
 
-    terrain.init(alloc);
+    const cells = try terrain.init(alloc);
+    defer alloc.destroy(cells);
+
+    world.cells = cells;
 
     gfx.init(alloc);
     gfx.startRunLoop(alloc, world); // calls logic.tick()

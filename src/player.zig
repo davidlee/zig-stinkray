@@ -6,6 +6,7 @@ const znoise = @import("znoise");
 
 // const input = @import("input.zig");
 const vec = @import("vec.zig");
+const m = @import("main.zig");
 const t = @import("terrain.zig");
 
 // pub var player = Player{
@@ -26,7 +27,7 @@ pub const Player = struct {
     facing: f32,
     move: ?CardinalDirection = undefined,
 
-    pub fn moveTo(self: *Player, direction: CardinalDirection) MoveCommandError!void {
+    pub fn moveTo(self: *Player, world: *m.World, direction: CardinalDirection) MoveCommandError!void {
         const delta = direction.ivec2();
 
         if (!t.isMoveBoundsValid(self.pos, direction)) {
@@ -41,7 +42,7 @@ pub const Player = struct {
 
         self.move = null;
 
-        if (t.isPassable(self.z, new_pos.y, new_pos.x) catch false) {
+        if (world.cells.isPassable(self.z, new_pos.y, new_pos.x) catch false) {
             self.pos = new_pos;
         } else {
             return MoveCommandError.ImpassableTerrain;
