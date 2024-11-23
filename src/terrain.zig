@@ -6,7 +6,7 @@ const znoise = @import("znoise");
 
 const input = @import("input.zig");
 const player = @import("player.zig");
-const vec = @import("vec.zig");
+const m = @import("main.zig");
 
 // pub var cells: Cells = Cells{};
 
@@ -68,11 +68,11 @@ const TileTag = enum {
 const CellMatrixYX = [MAX.y][MAX.x]Cell;
 const CellMatrixZYX = [MAX.z][MAX.y][MAX.x]Cell;
 
-const MAX = vec.Uvec3{ .x = 100, .y = 100, .z = 2 };
+const MAX = m.Uvec3{ .x = 100, .y = 100, .z = 2 };
 
 const Rect2d = struct {
-    origin: vec.Uvec2, // top left
-    extent: vec.Uvec2, // bot right
+    origin: m.Uvec2, // top left
+    extent: m.Uvec2, // bot right
 };
 
 pub fn init(alloc: std.mem.Allocator) !*CellStore {
@@ -109,7 +109,7 @@ fn genTerrainNoise(cells: *CellStore) void {
     }
 }
 
-pub fn isMoveBoundsValid(pos: vec.Uvec2, direction: player.Direction) bool {
+pub fn isMoveBoundsValid(pos: m.Uvec2, direction: m.Direction) bool {
     const delta = direction.ivec2();
 
     if ((pos.x == 0 and delta.x < 0) or
@@ -130,13 +130,13 @@ pub fn isMoveBoundsValid(pos: vec.Uvec2, direction: player.Direction) bool {
 fn genRooms(cells: *CellStore) void {
     var rooms: [16]Rect2d = undefined; // avoid allocation
     for (rooms, 0..) |_, i| {
-        const origin = vec.Uvec2{
+        const origin = m.Uvec2{
             .x = rng.uintLessThanBiased(u16, 80),
             .y = rng.uintLessThanBiased(u16, 80),
         };
         const room = Rect2d{
             .origin = origin,
-            .extent = vec.Uvec2{
+            .extent = m.Uvec2{
                 .x = origin.x + rng.uintLessThanBiased(u16, 20),
                 .y = origin.y + rng.uintLessThanBiased(u16, 12),
             },

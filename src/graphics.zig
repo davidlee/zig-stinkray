@@ -1,13 +1,11 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-const vec = @import("vec.zig");
-const logic = @import("logic.zig");
 const p = @import("player.zig");
 const t = @import("terrain.zig");
 const m = @import("main.zig");
 
-pub const CELL_SIZE = 16;
+const CELL_SIZE = 16;
 
 pub fn init(alloc: std.mem.Allocator) void {
     _ = alloc;
@@ -24,26 +22,14 @@ pub fn deinit() void {
     defer rl.closeWindow();
 }
 
-pub fn pxToCell(px: vec.Ivec2) vec.Uvec2 {
-    return vec.Uvec2{
+pub fn pxToCell(px: m.Ivec2) m.Uvec2 {
+    return m.Uvec2{
         .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
         .y = @as(u16, @intCast(px.y)) / CELL_SIZE,
     };
 }
 
-// Main game loop
-pub fn startRunLoop(alloc: std.mem.Allocator, world: *m.World) void {
-    while (!rl.windowShouldClose()) {
-        logic.tick(alloc, world);
-
-        rl.beginDrawing();
-        defer rl.endDrawing();
-
-        draw(world);
-    }
-}
-
-fn draw(world: *m.World) void {
+pub fn draw(world: *m.World) void {
     rl.clearBackground(rl.Color.dark_gray);
     drawCells(world.cells);
     drawPlayer(world.player);
