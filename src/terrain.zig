@@ -109,7 +109,7 @@ fn genTerrainNoise(cells: *CellStore) void {
     }
 }
 
-pub fn isMoveBoundsValid(pos: vec.Uvec2, direction: player.CardinalDirection) bool {
+pub fn isMoveBoundsValid(pos: vec.Uvec2, direction: player.Direction) bool {
     const delta = direction.ivec2();
 
     if ((pos.x == 0 and delta.x < 0) or

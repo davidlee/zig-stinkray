@@ -9,25 +9,23 @@ const vec = @import("vec.zig");
 const m = @import("main.zig");
 const t = @import("terrain.zig");
 
-// pub var player = Player{
-//     .pos = vec.Uvec2{
-//         .x = 50,
-//         .y = 50,
-//     },
-//     .z = 0,
-//     .facing = 0.0,
-// };
+const CommandTag = enum {
+    move,
+    turn,
+    attack,
+};
 
-// pub const Player = struct {
+const Command = union(enum) { move: Direction, turn: i16, attack: Direction };
+
 pub const Player = struct {
     health: i32 = 10,
     inventory: struct {} = .{},
     pos: vec.Uvec2,
     z: usize,
     facing: f32,
-    move: ?CardinalDirection = undefined,
+    move: ?Direction = undefined,
 
-    pub fn moveTo(self: *Player, world: *m.World, direction: CardinalDirection) MoveCommandError!void {
+    pub fn moveTo(self: *Player, world: *m.World, direction: Direction) MoveCommandError!void {
         const delta = direction.ivec2();
 
         if (!t.isMoveBoundsValid(self.pos, direction)) {
@@ -65,30 +63,42 @@ pub fn init(alloc: std.mem.Allocator) !*Player {
     return ptr;
 }
 
-pub const CardinalDirection = enum {
+pub const Direction = enum {
     North,
+    NorthEast,
     East,
+    SouthEast,
     South,
+    SouthWest,
     West,
+    NorthWest,
 
-    pub fn ivec2(self: CardinalDirection) vec.Ivec2 {
-        const i: usize = @intFromEnum(self);
-        std.debug.assert(i <= CardinalDirectionIvec2.len);
-        return CardinalDirectionIvec2[i];
+    pub fn ivec2(self: Direction) vec.Ivec2 {
+        return Direction_Vectors[@intFromEnum(self)];
     }
 };
 
-test "cardinal direction" {
-    const c = CardinalDirection;
-    try std.testing.expectEqual(c.North.ivec2(), vec.Ivec2{ .x = 0, .y = -1 });
-    try std.testing.expectEqual(c.South.ivec2(), vec.Ivec2{ .x = 0, .y = 1 });
-    try std.testing.expectEqual(c.East.ivec2(), vec.Ivec2{ .x = 1, .y = 0 });
-    try std.testing.expectEqual(c.West.ivec2(), vec.Ivec2{ .x = -1, .y = 0 });
-}
-
-const CardinalDirectionIvec2 = [_]vec.Ivec2{
+pub const Direction_Vectors = [_]vec.Ivec2{
     .{ .x = 0, .y = -1 },
+    .{ .x = 1, .y = -1 },
     .{ .x = 1, .y = 0 },
+    .{ .x = 1, .y = 1 },
     .{ .x = 0, .y = 1 },
+    .{ .x = -1, .y = 1 },
     .{ .x = -1, .y = 0 },
+    .{ .x = -1, .y = -1 },
+};
+
+pub const CardinalDirections = [_]Direction{
+    .North,
+    .East,
+    .South,
+    .West,
+};
+
+pub const OrdinalDirections = [_]Direction{
+    .NorthWest,
+    .NorthEast,
+    .SouthEast,
+    .SouthWest,
 };
