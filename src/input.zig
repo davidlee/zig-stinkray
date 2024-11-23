@@ -6,11 +6,12 @@ const graphics = @import("graphics.zig");
 const terrain = @import("terrain.zig");
 const player = @import("player.zig");
 const vec = @import("vec.zig");
+const m = @import("main.zig");
 
-pub fn handleKeyboard() void {
+pub fn handleKeyboard(world: *m.World) void {
     inline for (MovementKeys) |x| {
         if (rl.isKeyDown(x[0])) {
-            player.move(x[1]) catch {};
+            world.player.moveTo(x[1]) catch {};
         }
     }
 }
@@ -22,7 +23,8 @@ const MovementKeys = .{
     .{ rl.KeyboardKey.key_right, .East },
 };
 
-pub fn handleMouse() void {
+pub fn handleMouse(world: *m.World) void {
+    _ = world;
     if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
         const px = vec.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
 

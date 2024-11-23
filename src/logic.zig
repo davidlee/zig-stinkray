@@ -8,12 +8,13 @@ const input = @import("input.zig");
 const vec = @import("vec.zig");
 
 const t = @import("terrain.zig");
+const m = @import("main.zig");
 const player = @import("player.zig");
 
-pub fn tick(alloc: std.mem.Allocator) void {
+pub fn tick(alloc: std.mem.Allocator, world: *m.World) void {
     _ = alloc;
-    input.handleKeyboard();
-    input.handleMouse();
+    input.handleKeyboard(world);
+    input.handleMouse(world);
     // player.move() catch {};
     // _ = 4;
 }

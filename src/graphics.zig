@@ -5,6 +5,7 @@ const vec = @import("vec.zig");
 const logic = @import("logic.zig");
 const p = @import("player.zig");
 const t = @import("terrain.zig");
+const m = @import("main.zig");
 
 pub const CELL_SIZE = 16;
 
@@ -31,24 +32,24 @@ pub fn pxToCell(px: vec.Ivec2) vec.Uvec2 {
 }
 
 // Main game loop
-pub fn startRunLoop(alloc: std.mem.Allocator) void {
+pub fn startRunLoop(alloc: std.mem.Allocator, world: *m.World) void {
     while (!rl.windowShouldClose()) {
-        logic.tick(alloc);
+        logic.tick(alloc, world);
 
         rl.beginDrawing();
         defer rl.endDrawing();
 
-        draw();
+        draw(world);
     }
 }
 
-fn draw() void {
+fn draw(world: *m.World) void {
     rl.clearBackground(rl.Color.dark_gray);
     drawCells(t.cells);
-    drawPlayer(p.player);
+    drawPlayer(world.player);
 }
 
-fn drawPlayer(player: p.Player) void {
+fn drawPlayer(player: *p.Player) void {
     const x = player.pos.x * CELL_SIZE;
     const y = player.pos.y * CELL_SIZE;
 

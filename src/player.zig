@@ -8,14 +8,14 @@ const znoise = @import("znoise");
 const vec = @import("vec.zig");
 const t = @import("terrain.zig");
 
-pub var player = Player{
-    .pos = vec.Uvec2{
-        .x = 50,
-        .y = 50,
-    },
-    .z = 0,
-    .facing = 0.0,
-};
+// pub var player = Player{
+//     .pos = vec.Uvec2{
+//         .x = 50,
+//         .y = 50,
+//     },
+//     .z = 0,
+//     .facing = 0.0,
+// };
 
 // pub const Player = struct {
 pub const Player = struct {
@@ -25,6 +25,28 @@ pub const Player = struct {
     z: usize,
     facing: f32,
     move: ?CardinalDirection = undefined,
+
+    pub fn moveTo(self: *Player, direction: CardinalDirection) MoveCommandError!void {
+        const delta = direction.ivec2();
+
+        if (!t.isMoveBoundsValid(self.pos, direction)) {
+            self.move = null;
+            return MoveCommandError.OutOfBounds;
+        }
+
+        const new_pos = vec.Uvec2{
+            .x = @intCast(self.pos.x + delta.x),
+            .y = @intCast(self.pos.y + delta.y),
+        };
+
+        self.move = null;
+
+        if (t.isPassable(self.z, new_pos.y, new_pos.x) catch false) {
+            self.pos = new_pos;
+        } else {
+            return MoveCommandError.ImpassableTerrain;
+        }
+    }
 };
 
 const MoveCommandError = error{
@@ -32,26 +54,14 @@ const MoveCommandError = error{
     ImpassableTerrain,
 };
 
-pub fn move(direction: CardinalDirection) MoveCommandError!void {
-    const delta = direction.ivec2();
-
-    if (!t.isMoveBoundsValid(player.pos, direction)) {
-        player.move = null;
-        return MoveCommandError.OutOfBounds;
-    }
-
-    const new_pos = vec.Uvec2{
-        .x = @intCast(player.pos.x + delta.x),
-        .y = @intCast(player.pos.y + delta.y),
+pub fn init(alloc: std.mem.Allocator) !*Player {
+    const ptr = try alloc.create(Player);
+    ptr.* = .{
+        .pos = vec.Uvec2{ .x = 50, .y = 50 },
+        .z = 0,
+        .facing = 0.0,
     };
-
-    player.move = null;
-
-    if (t.isPassable(player.z, new_pos.y, new_pos.x) catch false) {
-        player.pos = new_pos;
-    } else {
-        return MoveCommandError.ImpassableTerrain;
-    }
+    return ptr;
 }
 
 pub const CardinalDirection = enum {
