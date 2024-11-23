@@ -1,7 +1,10 @@
 const std = @import("std");
 const rl = @import("raylib");
 
+const vec = @import("vec.zig");
 const logic = @import("logic.zig");
+const p = @import("player.zig");
+const t = @import("terrain.zig");
 
 pub const CELL_SIZE = 16;
 
@@ -20,8 +23,8 @@ pub fn deinit() void {
     defer rl.closeWindow();
 }
 
-pub fn pxToCell(px: logic.Ivec2) logic.Uvec2 {
-    return logic.Uvec2{
+pub fn pxToCell(px: vec.Ivec2) vec.Uvec2 {
+    return vec.Uvec2{
         .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
         .y = @as(u16, @intCast(px.y)) / CELL_SIZE,
     };
@@ -41,18 +44,18 @@ pub fn startRunLoop(alloc: std.mem.Allocator) void {
 
 fn draw() void {
     rl.clearBackground(rl.Color.dark_gray);
-    drawCells(logic.cells);
-    drawPlayer(logic.player);
+    drawCells(t.cells);
+    drawPlayer(p.player);
 }
 
-fn drawPlayer(player: logic.Player) void {
+fn drawPlayer(player: p.Player) void {
     const x = player.pos.x * CELL_SIZE;
     const y = player.pos.y * CELL_SIZE;
 
     rl.drawRectangle(x, y, CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
-fn drawCells(cells: logic.Cells) void {
+fn drawCells(cells: t.Cells) void {
     const z = 0;
     for (cells.data[z], 0..) |ys, y| {
         for (ys, 0..) |cell, x| {

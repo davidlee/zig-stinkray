@@ -1,9 +1,10 @@
 const rl = @import("raylib");
 
+const std = @import("std");
 const logic = @import("logic.zig");
 const gfx = @import("graphics.zig");
-
-const std = @import("std");
+const terrain = @import("terrain.zig");
+const player = @import("player.zig");
 
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -13,7 +14,7 @@ pub fn main() anyerror!void {
         _ = gpa.deinit();
     }
 
-    logic.init(alloc);
+    terrain.init(alloc);
 
     gfx.init(alloc);
     gfx.startRunLoop(alloc); // calls logic.tick()

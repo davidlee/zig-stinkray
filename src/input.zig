@@ -3,10 +3,15 @@ const rl = @import("raylib");
 
 const logic = @import("logic.zig");
 const graphics = @import("graphics.zig");
+const terrain = @import("terrain.zig");
+const player = @import("player.zig");
+const vec = @import("vec.zig");
 
 pub fn handleKeyboard() void {
     inline for (MovementKeys) |x| {
-        if (rl.isKeyDown(x[0])) logic.player.move = x[1];
+        if (rl.isKeyDown(x[0])) {
+            player.move(x[1]) catch {};
+        }
     }
 }
 
@@ -19,18 +24,17 @@ const MovementKeys = .{
 
 pub fn handleMouse() void {
     if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
-        const x = rl.getMouseX();
-        const y = rl.getMouseY();
+        const px = vec.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
 
-        const px = logic.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
-        const yx = graphics.pxToCell(px);
+        const uvec = graphics.pxToCell(px);
+        var cell = terrain.getCellAtZYX(0, uvec.y, uvec.x);
 
-        _ = .{ x, y, yx };
+        const tile = switch (cell.tile) {
+            .Empty => terrain.Tile{ .Solid = .Stone },
+            .Floor => terrain.Tile{ .Solid = .Stone },
+            .Solid => terrain.Tile{ .Floor = .Dirt },
+        };
 
-        // var cell = logic.cells.tdata[0][yx.y][yx.x];
-        // _ = cell;
-        // switch()
-        // std.debug.print("clik {d} - {d}", .{ x, y });
-        // std.debug.print("cell: {d} - {d}", .{ cell.x, cell.y });
+        cell.tile = tile;
     }
 }
