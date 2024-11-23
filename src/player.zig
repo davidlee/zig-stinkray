@@ -10,8 +10,8 @@ const t = @import("terrain.zig");
 
 pub var player = Player{
     .pos = vec.Uvec2{
-        .x = t.MAX.x / 2,
-        .y = t.MAX.y / 2,
+        .x = 50,
+        .y = 50,
     },
     .z = 0,
     .facing = 0.0,
@@ -34,13 +34,8 @@ const MoveCommandError = error{
 
 pub fn move(direction: CardinalDirection) MoveCommandError!void {
     const delta = direction.ivec2();
-    const pos = player.pos;
 
-    if ((pos.x == 0 and delta.x < 0) or
-        (pos.y == 0 and delta.y < 0) or
-        (pos.x == t.MAX.x and delta.x > 0) or
-        (pos.y == t.MAX.y and delta.y > 0))
-    {
+    if (!t.isMoveBoundsValid(player.pos, direction)) {
         player.move = null;
         return MoveCommandError.OutOfBounds;
     }

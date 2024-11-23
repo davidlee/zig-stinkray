@@ -5,9 +5,14 @@ const rl = @import("raylib");
 const znoise = @import("znoise");
 
 const input = @import("input.zig");
+const player = @import("player.zig");
 const vec = @import("vec.zig");
 
 pub var cells: Cells = Cells{};
+
+pub const Cells = struct {
+    data: CellMatrixZYX = @splat(@splat(@splat(Cell{}))),
+};
 
 pub const Tile = union(TileTag) {
     Empty,
@@ -17,11 +22,7 @@ pub const Tile = union(TileTag) {
 
 pub const Cell = struct {
     tile: Tile = .Empty,
-    items: u8 = 0,
-};
-
-pub const Cells = struct {
-    data: CellMatrixZYX = @splat(@splat(@splat(Cell{}))),
+    // items: u8 = 0,
 };
 
 // private data
@@ -44,8 +45,7 @@ const TileTag = enum {
 const CellMatrixYX = [MAX.y][MAX.x]Cell;
 const CellMatrixZYX = [MAX.z][MAX.y][MAX.x]Cell;
 
-// TODO avoid making this public
-pub const MAX = vec.Uvec3{ .x = 100, .y = 100, .z = 2 };
+const MAX = vec.Uvec3{ .x = 100, .y = 100, .z = 2 };
 
 const Rect2d = struct {
     origin: vec.Uvec2, // top left
@@ -63,22 +63,12 @@ pub fn getCellAtZYX(z: usize, y: usize, x: usize) *Cell {
     return &cells.data[z][y][x];
 }
 
-pub fn setCellAtZYX(z: usize, y: usize, x: usize, cell: Cell) void {
+fn setCellAtZYX(z: usize, y: usize, x: usize, cell: Cell) void {
     std.debug.assert(z <= MAX.z);
     std.debug.assert(y <= MAX.y);
     std.debug.assert(x <= MAX.x);
     cells.data[z][y][x] = cell;
 }
-
-// would be nice for magic vec to support this
-// pub fn applyDeltaToPosition(pos: vec.Uvec3, delta: vec.Ivec3) !vec.Uvec3 {
-// }
-
-// pub fn validMove(pos: vec.Uvec3, delta: vec.Ivec3) !bool {
-//     std.debug.assert(pos.z <= MAX.z);
-//     std.debug.assert(pos.y <= MAX.y);
-//     std.debug.assert(pos.x <= MAX.x);
-// }
 
 pub fn isPassable(z: usize, y: usize, x: usize) !bool {
     return switch (getCellAtZYX(z, y, x).tile) {
@@ -86,6 +76,20 @@ pub fn isPassable(z: usize, y: usize, x: usize) !bool {
         .Floor => true,
         .Solid => false,
     };
+}
+
+pub fn isMoveBoundsValid(pos: vec.Uvec2, direction: player.CardinalDirection) bool {
+    const delta = direction.ivec2();
+
+    if ((pos.x == 0 and delta.x < 0) or
+        (pos.y == 0 and delta.y < 0) or
+        (pos.x == MAX.x - 1 and delta.x > 0) or
+        (pos.y == MAX.y - 1 and delta.y > 0))
+    {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 fn initMap(alloc: std.mem.Allocator) void {
@@ -103,7 +107,6 @@ fn genTerrainNoise() void {
     const k = 0.35;
 
     for (cells.data, 0..) |zs, z| {
-        std.debug.print("yes, ", .{});
         for (zs, 0..) |ys, y| {
             for (ys, 0..) |_, x| {
                 const noiseX: f32 = @floatFromInt(x);
