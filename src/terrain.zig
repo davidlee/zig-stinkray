@@ -8,6 +8,10 @@ const input = @import("input.zig");
 const player = @import("player.zig");
 const m = @import("main.zig");
 
+const CellStoreError = error{
+    InvalidCoordinate,
+};
+
 pub const CellStore = struct {
     // this should be considered private; prefer access through methods
     _list: [LEN]Cell,
@@ -15,24 +19,23 @@ pub const CellStore = struct {
     // TODO when I'm feeling smart enough, build a custom iterator
     // to avoid leaking internals directly
 
-    pub fn get(self: CellStore, x: usize, y: usize, z: usize) Cell {
-        // std.debug.assert(z <= MAX.z);
-        // std.debug.assert(y <= MAX.y);
-        // std.debug.assert(x <= MAX.x);
-        const i = self.indexOf(x, y, z);
+    pub fn get(self: CellStore, x: usize, y: usize, z: usize) CellStoreError!Cell {
+        const i = try self.indexOf(x, y, z);
         return self._list[i];
     }
 
+    // WARN UNCHECKED
     pub fn getByIndex(self: CellStore, i: usize) Cell {
         return self._list[i];
     }
 
+    // WARN UNCHECKED
     fn setByIndex(self: *CellStore, i: usize, cell: Cell) void {
         self._list[i] = cell;
     }
 
-    pub fn set(self: *CellStore, x: usize, y: usize, z: usize, cell: Cell) void {
-        const i = self.indexOf(x, y, z);
+    pub fn set(self: *CellStore, x: usize, y: usize, z: usize, cell: Cell) CellStoreError!void {
+        const i = try self.indexOf(x, y, z);
         self.setByIndex(i, cell);
     }
 
@@ -41,8 +44,10 @@ pub const CellStore = struct {
     //     return self.list[i];
     // }
 
-    pub fn isPassable(self: CellStore, x: usize, y: usize, z: usize) !bool {
-        return switch (self.get(x, y, z).tile) {
+    pub fn isPassable(self: CellStore, x: usize, y: usize, z: usize) CellStoreError!bool {
+        const cell = try self.get(x, y, z);
+
+        return switch (cell.tile) {
             .Empty => true,
             .Floor => true,
             .Solid => false,
@@ -63,19 +68,25 @@ pub const CellStore = struct {
     //     return range;
     // }
 
-    pub fn XYZof(self: CellStore, i: usize) [3]usize {
+    pub fn XYZof(self: CellStore, i: usize) ![3]usize {
         _ = self;
+
         const x = i % MAX.x;
         const y = i / MAX.x;
         const z = i / (MAX.x * MAX.y);
+
+        if (x > MAX.x or y > MAX.y or z > MAX.z) {
+            return CellStoreError.InvalidCoordinate;
+        }
         return .{ x, y, z };
     }
 
-    pub fn indexOf(self: CellStore, x: usize, y: usize, z: usize) usize {
+    pub fn indexOf(self: CellStore, x: usize, y: usize, z: usize) !usize {
         _ = self;
-        // std.debug.assert(z <= MAX.z);
-        // std.debug.assert(y <= MAX.y);
-        // std.debug.assert(x <= MAX.x);
+
+        if (x > MAX.x or y > MAX.y or z > MAX.z) {
+            return CellStoreError.InvalidCoordinate;
+        }
         return z * (MAX.x * MAX.y) + y * MAX.x + x;
     }
 };
@@ -120,11 +131,11 @@ pub fn deinit(cells: *CellStore) void {
 }
 
 fn initMap(world: *m.World) void {
-    genTerrainNoise(&world.cells);
-    genRooms(world);
+    genTerrainNoise(&world.cells) catch std.log.debug("ERR: genTerrainNoise", .{});
+    genRooms(world) catch std.log.debug("ERR: getRooms", .{});
 }
 
-fn genTerrainNoise(cells: *CellStore) void {
+fn genTerrainNoise(cells: *CellStore) !void {
     const gen = znoise.FnlGenerator{
         .frequency = 0.12,
     };
@@ -132,7 +143,7 @@ fn genTerrainNoise(cells: *CellStore) void {
     const k = 0.35;
 
     for (cells._list, 0..) |_, i| {
-        const xy = cells.XYZof(i);
+        const xy = try cells.XYZof(i);
 
         const noiseX: f32 = @floatFromInt(xy[0]);
         const noiseY: f32 = @floatFromInt(xy[1]);
@@ -174,7 +185,7 @@ const Room = struct { x: u16, y: u16, width: u16, height: u16 };
 const ROOM_SIZE = .{ .min = 4, .max = 30 };
 const ROOM_COUNT = .{ .min = 4, .max = 20 };
 
-fn genRooms(world: *m.World) void {
+fn genRooms(world: *m.World) !void {
     const count = rng.uintLessThanBiased(u16, ROOM_COUNT.max - ROOM_COUNT.min) + ROOM_COUNT.min;
     const size_range = ROOM_SIZE.max - ROOM_SIZE.min;
     const z = 0; // FIXME
@@ -210,13 +221,19 @@ fn genRooms(world: *m.World) void {
         for (room.x..room.x + room.width) |x| {
             for (room.y..room.y + room.height) |y| {
                 const cell = Cell{ .tile = Tile{ .Floor = .Iron } };
-                world.cells.set(x, y, z, cell);
+                try world.cells.set(x, y, z, cell);
             }
         }
 
         rooms[i] = room;
     }
-    // TODO draw corridoors, doors, etc
 
-    // TODO store room definitions / metadata -> treasure tables, etc
+    // TODO
+    // draw corridoors, doors, etc
+    // store room definitions / metadata -> treasure tables, etc
+    // non-rectangular rooms & overlap:
+    //   generate rect. rooms as above
+    //   check for collisions
+    //   randomly union / subtract / reject collisions
+    //   will need to describe rooms in metadata using an array or bitmask ..
 }

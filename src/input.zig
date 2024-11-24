@@ -29,16 +29,14 @@ const MovementKeys = .{
     .{ rl.KeyboardKey.key_left, .West },
 };
 
-pub fn handleMouse(world: *m.World) void {
+pub fn handleMouse(world: *m.World) !void {
     if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
         const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
+        const uvec = graphics.pxToCellXY(px);
 
-        const uvec = graphics.pxToCell(px);
+        // std.debug.print(" ({d}, {d}) ", .{ uvec.x, uvec.y });
 
-        std.debug.print(" ({d}, {d}) ", .{ uvec.x, uvec.y });
-
-        const cell = world.cells.get(uvec.x, uvec.y, 0);
-        // const i = world.cells.indexOf(uvec.x, uvec.y, 0);
+        const cell = try world.cells.get(uvec.x, uvec.y, 0);
 
         const tile = switch (cell.tile) {
             .Empty => terrain.Tile{ .Solid = .Stone },
@@ -47,6 +45,6 @@ pub fn handleMouse(world: *m.World) void {
         };
 
         const new_cell = terrain.Cell{ .tile = tile };
-        world.cells.set(uvec.x, uvec.y, 0, new_cell);
+        try world.cells.set(uvec.x, uvec.y, 0, new_cell);
     }
 }

@@ -6,14 +6,28 @@ const m = @import("main.zig");
 
 const CELL_SIZE = 16;
 
-pub fn init(world: *m.World) void {
-    _ = world;
+var camera: rl.Camera2D = undefined; // hhhnnnnggg
 
+pub fn init(world: *m.World) void {
+    // _ = world;
     const screenWidth = 2048;
     const screenHeight = 2048;
 
     rl.initWindow(screenWidth, screenHeight, "raylib-zig [core] example - basic window");
+    camera = rl.Camera2D{
+        .offset = rl.Vector2.init(
+            @floatFromInt(world.player.pos.x * CELL_SIZE),
+            @floatFromInt(world.player.pos.y * CELL_SIZE),
+        ),
+        .target = rl.Vector2.init(
+            @floatFromInt(screenWidth / 2),
+            @floatFromInt(screenHeight / 2),
+        ),
+        .rotation = 0,
+        .zoom = 1,
+    };
 
+    _ = camera;
     rl.setTargetFPS(60);
 }
 
@@ -21,7 +35,8 @@ pub fn deinit() void {
     defer rl.closeWindow();
 }
 
-pub fn pxToCell(px: m.Ivec2) m.Uvec2 {
+// TODO - if using a camera, we have to account for its translation
+pub fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
     return m.Uvec2{
         .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
         .y = @as(u16, @intCast(px.y)) / CELL_SIZE,
@@ -30,8 +45,10 @@ pub fn pxToCell(px: m.Ivec2) m.Uvec2 {
 
 pub fn draw(world: *m.World) void {
     rl.clearBackground(rl.Color.dark_gray);
-    drawCells(&world.cells);
+    // camera.begin();
+    drawCells(&world.cells) catch std.log.debug("ERR: DrawCells", .{});
     drawPlayer(&world.player);
+    // camera.end();
 }
 
 fn drawPlayer(player: *p.Player) void {
@@ -41,10 +58,11 @@ fn drawPlayer(player: *p.Player) void {
     rl.drawRectangle(x, y, CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
-fn drawCells(cells: *t.CellStore) void {
+fn drawCells(cells: *t.CellStore) !void {
     // TODO only draw visible cells
+    // or at least on the same Z index ..
     for (cells._list, 0..) |cell, i| {
-        const xy = cells.XYZof(i);
+        const xy = try cells.XYZof(i);
 
         const px: i32 = @intCast(xy[0] * CELL_SIZE);
         const py: i32 = @intCast(xy[1] * CELL_SIZE);

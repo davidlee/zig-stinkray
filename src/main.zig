@@ -10,6 +10,7 @@ pub const World = struct {
     cells: terrain.CellStore,
     player: player.Player,
     allocator: std.mem.Allocator, // expanding brain meme - like Odin's default context(?)
+    camera: rl.Camera2D,
 };
 
 pub fn main() anyerror!void {
@@ -51,7 +52,7 @@ pub fn startRunLoop(world: *World) void {
 
 pub fn tick(world: *World) void {
     input.handleKeyboard(world);
-    input.handleMouse(world);
+    input.handleMouse(world) catch std.log.debug("ERR: handleMouse ", .{});
 }
 
 fn deinit() void {}
