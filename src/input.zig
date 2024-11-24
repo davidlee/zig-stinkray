@@ -19,7 +19,7 @@ pub fn handleKeyboard(world: *m.World) void {
         }
     }
 
-    if (rl.isKeyPressed(.key_q)) {}
+    // if (rl.isKeyPressed(.key_1)) {}
 }
 
 const MovementKeys = .{
