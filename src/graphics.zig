@@ -61,14 +61,16 @@ pub fn cellXYatMouse() m.Uvec2 {
 }
 
 pub fn draw(world: *m.World) void {
+    camera.target = playerFollowCameraTarget(world);
+    camera.rotation = @as(f32, @floatFromInt(@intFromEnum(world.player.facing))) * 45.0;
+
     rl.clearBackground(rl.Color.dark_gray);
     camera.begin();
-    camera.target = playerFollowCameraTarget(world);
-    const rot: f32 = @as(f32, @floatFromInt(@intFromEnum(world.player.facing))) * 45.0;
-    camera.rotation = rot;
-    drawCells(&world.cells) catch std.log.debug("ERR: DrawCells", .{});
+
+    drawCells(world) catch std.log.debug("ERR: DrawCells", .{});
     drawPlayer(&world.player);
     drawRegion(world);
+
     camera.end();
 }
 
@@ -172,22 +174,67 @@ fn drawPlayer(player: *p.Player) void {
 
 // TODO only draw visible cells
 //
-fn drawCells(cells: *t.CellStore) !void {
-    for (cells._list, 0..) |cell, i| {
-        const xy = try cells.XYZof(i);
+fn drawCells(world: *m.World) !void {
+    // const pos = world.player.pos;
+    // const cells = try world.cells.getVisible(pos.x, pos.y, world.player.z, 150, 30);
+
+    for (world.cells._list, 0..) |cell, i| {
+        const xy = try world.cells.XYZof(i);
 
         const px: i32 = @intCast(xy[0] * CELL_SIZE);
         const py: i32 = @intCast(xy[1] * CELL_SIZE);
 
         switch (cell.tile) {
-            .Empty => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.dark_green),
+            .Empty => rl.drawRectangle(
+                px,
+                py,
+                CELL_SIZE,
+                CELL_SIZE,
+                rl.Color.dark_gray,
+            ),
             .Floor => |mat| {
                 switch (mat) {
-                    .Iron => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.yellow),
-                    else => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.dark_brown),
+                    .Iron => {
+                        rl.drawRectangle(
+                            px,
+                            py,
+                            CELL_SIZE,
+                            CELL_SIZE,
+                            rl.Color.init(20, 30, 20, 255),
+                        );
+                        rl.drawRectangle(
+                            px + 3,
+                            py + 3,
+                            4,
+                            4,
+                            rl.Color.init(50, 50, 40, 255),
+                        );
+                    },
+                    else => {
+                        rl.drawRectangle(
+                            px,
+                            py,
+                            CELL_SIZE,
+                            CELL_SIZE,
+                            rl.Color.init(48, 33, 22, 255),
+                        );
+                        rl.drawRectangle(
+                            px + 4,
+                            py + 4,
+                            4,
+                            4,
+                            rl.Color.init(18, 25, 44, 255),
+                        );
+                    },
                 }
             },
-            .Solid => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.orange),
+            .Solid => rl.drawRectangle(
+                px,
+                py,
+                CELL_SIZE,
+                CELL_SIZE,
+                rl.Color.black,
+            ),
         }
     }
 }

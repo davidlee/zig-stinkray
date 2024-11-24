@@ -69,18 +69,22 @@ pub const CellStore = struct {
         return false;
     }
 
-    // TODO getVisibleRange()
-    //
-    // const Z_SLICE_SIZE = MAX.x * MAX.y;
+    // an optimisation to prevent rendering many cells
+    // return (a slice?) all potentially visible cells at a given Z, around a given X,Y
+    // with given width & height.
+    // FIXME
+    // TODO
+    // pub fn getVisible(self: CellStore, x: usize, y: usize, z: usize, width: usize, height: usize) ![]const Cell {
+    //     const w = std.math.clamp(width, 0, MAX.x);
+    //     const h = std.math.clamp(height, 0, MAX.y);
+    //     const ax = x -| w / 2;
+    //     const ay = y -| h / 2;
+    //     const bx = std.math.clamp(x +| w / 2, 0, MAX.x);
+    //     const by = std.math.clamp(y +| h / 2, 0, MAX.y);
+    //     const start_idx = try self.indexOf(ax, ay, z);
+    //     const end_idx = try self.indexOf(bx, by, z);
 
-    // pub fn getRangeAtZ(self: CellStore, z: usize) [Z_SLICE_SIZE]usize {
-    //     _ = self;
-    //     const a = z * Z_SLICE_SIZE;
-    //     var range = [_]usize{0} ** Z_SLICE_SIZE;
-    //     for (0..Z_SLICE_SIZE) |i| {
-    //         range[i] = a + i;
-    //     }
-    //     return range;
+    //     return self._list[start_idx..end_idx];
     // }
 
     pub fn XYZof(self: CellStore, i: usize) ![3]usize {
@@ -117,16 +121,6 @@ pub const CellStore = struct {
         try self.set(x, y, z, new_cell);
     }
 
-    // // stash xy coords in world.region, to draw
-    // pub fn squareAround(self: *CellStore, x: usize, y: usize, radius: usize, array_list: *std.ArrayList(m.Uvec2)) !void {
-    //     _ = self;
-    //     for (x -| radius..x + radius) |cx| {
-    //         for (y -| radius..y + radius) |cy| {
-    //             try array_list.append(m.Uvec2{ .x = cx, .y = cy });
-    //         }
-    //     }
-    // }
-
     // stash xy coords in world.region, to draw
     pub fn findBlockingCellsAround(self: *CellStore, x: usize, y: usize, z: usize, radius: usize, array_list: *std.ArrayList(m.Uvec2)) !void {
         for (x -| radius..x + radius) |cx| {
@@ -138,10 +132,6 @@ pub const CellStore = struct {
         }
     }
 };
-
-// pub fn subi32fromUsize(u: usize, d: anytype) {
-
-// }
 
 pub const Tile = union(TileTag) {
     Empty,
