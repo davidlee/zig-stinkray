@@ -7,6 +7,7 @@ const znoise = @import("znoise");
 // const input = @import("input.zig");
 const m = @import("main.zig");
 const t = @import("terrain.zig");
+const fov = @import("shadowcast.zig");
 
 const CommandTag = enum {
     move,
@@ -24,11 +25,11 @@ pub const Player = struct {
     health: i32 = 10,
     inventory: struct {} = .{},
     pos: m.Uvec2,
-    z: usize,
-    facing: u8,
+    z: usize = 0,
+    facing: m.Direction = .North,
     // command: ?Command,
 
-    pub fn moveTo(self: Player, world: *m.World, direction: m.Direction) MoveCommandError!void {
+    pub fn moveTo(self: Player, world: *m.World, direction: m.Direction) !void {
         const delta = direction.ivec2();
 
         if (!t.isMoveBoundsValid(self.pos, direction)) {
@@ -46,6 +47,12 @@ pub const Player = struct {
             return MoveCommandError.ImpassableTerrain;
         }
     }
+
+    // pub fn updateVisibility(self: Player, world: *m.World) void {
+    //     _ = world;
+    //     fov.shadowcast(self.pos, 20);
+    // }
+
 };
 
 const MoveCommandError = error{
@@ -58,6 +65,5 @@ pub fn init(world: *m.World) void {
         .pos = m.Uvec2{ .x = 50, .y = 50 },
         .inventory = .{},
         .z = 0,
-        .facing = 0.0,
     };
 }

@@ -64,6 +64,11 @@ pub const CellStore = struct {
         };
     }
 
+    pub fn isBlockingFov(self: CellStore, x: usize, y: usize, z: usize) bool {
+        _ = .{ self, x, y, z };
+        return false;
+    }
+
     // TODO getVisibleRange()
     //
     // const Z_SLICE_SIZE = MAX.x * MAX.y;

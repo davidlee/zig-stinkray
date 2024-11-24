@@ -1,30 +1,46 @@
 const std = @import("std");
-// const m = @import("main.zig");
+const m = @import("main.zig");
+const t = @import("terrain.zig");
+const p = @import("player.zig");
+
 const r = std.math.big.Rational;
 
-const Vec2 = struct { x: u16, y: u16 };
+const Uvec2 = struct { x: usize, y: usize };
 const Angle = r;
-const Callback = *const fn (x: u16, y: u16) void;
+const CallbackXY = *const fn (x: usize, y: usize) void;
+const CallbackXYZ = *const fn (x: usize, y: usize, z: usize) void;
 
 // pub fn init()
 
+var _world: *m.World = undefined;
+var _cell_store: *t.CellStore = undefined;
+var _vis_map_owner: *p.Player = undefined;
+
+// let's make it dumb and hardcode stuff for now, and
+// generalise / abstract interfaces out later
+pub fn init(world: *m.World, store: *t.CellStore, vis: *p.Player) void {
+    _world = world;
+    _cell_store = store;
+    _vis_map_owner = vis;
+}
+
 pub fn shadowcast(
-    origin: Vec2,
-    range: u16,
-    is_blocking: Callback,
-    mark_visible: Callback,
+    origin: Uvec2,
+    range: usize,
+    // is_blocking: *const fn (x: usize, y: usize, z: usize) void,
+    // mark_visible: *const fn (x: usize, y: usize) void,
 ) void {
-    _ = .{ origin, range, is_blocking, mark_visible };
+    _ = .{ origin, range };
 }
 
-fn markVisible(
-    cell: Vec2,
-) void {
-    _ = cell;
-}
+// fn markVisible(
+//     cell: Uvec2,
+// ) void {
+//     _ = cell;
+// }
 
-fn isBlocking(
-    cell: Vec2,
-) void {
-    _ = cell;
-}
+// fn isBlocking(
+//     cell: Uvec2,
+// ) void {
+//     _ = cell;
+// }

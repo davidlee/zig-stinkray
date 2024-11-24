@@ -63,6 +63,8 @@ pub fn draw(world: *m.World) void {
     rl.clearBackground(rl.Color.dark_gray);
     camera.begin();
     camera.target = playerFollowCameraTarget(world);
+    const rot: f32 = @as(f32, @floatFromInt(@intFromEnum(world.player.facing))) * 45.0;
+    camera.rotation = rot;
     drawCells(&world.cells) catch std.log.debug("ERR: DrawCells", .{});
     drawPlayer(&world.player);
     camera.end();

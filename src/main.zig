@@ -61,20 +61,12 @@ fn deinit() void {}
 // utility functons .. keep an eye on these
 //
 
-// TODO make generic
 // instead of casting usize to isize (risking overflow),
 // cast the signed value to usize. Subtract if necessary.
+//
 // https://ziggit.dev/t/adding-a-signed-integer-to-an-unsigned-integer/5803/3
 //
 pub fn addSignedtoUsize(u: usize, i: anytype) usize {
-    // var uv = u;
-    // if (i < 0) {
-    //     uv -|= @intCast(-i);
-    // } else {
-    //     uv +|= @intCast(i);
-    // }
-    // return uv;
-
     if (i < 0) {
         return u - cast(usize, -i);
     } else {
@@ -87,8 +79,6 @@ pub fn addSignedtoUsize(u: usize, i: anytype) usize {
 inline fn cast(T: type, v: anytype) T {
     return @intCast(v);
 }
-
-// pub fn deinit() void {}
 
 //
 // Types
@@ -109,6 +99,17 @@ pub const Direction = enum {
     pub fn ivec2(self: Direction) Ivec2 {
         return Direction_Vectors[@intFromEnum(self)];
     }
+};
+
+pub const DirectionList = [_]Direction{
+    .North,
+    .NorthEast,
+    .East,
+    .SouthEast,
+    .South,
+    .SouthWest,
+    .West,
+    .NorthWest,
 };
 
 pub const Direction_Vectors = [_]Ivec2{
@@ -136,10 +137,15 @@ pub const OrdinalDirections = [_]Direction{
     .SouthWest,
 };
 
-const RotationalDirection = enum {
-    None,
+pub const RotationalDirection = enum {
     Counterclockwise,
+    None,
     Clockwise,
+
+    pub fn applyToFacing(self: RotationalDirection, dir: Direction) Direction {
+        const i = (@intFromEnum(dir) + DirectionList.len + @intFromEnum(self) - 1) % DirectionList.len;
+        return DirectionList[i];
+    }
 };
 
 // vectors
