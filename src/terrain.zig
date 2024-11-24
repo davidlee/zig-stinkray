@@ -8,31 +8,57 @@ const input = @import("input.zig");
 const player = @import("player.zig");
 const m = @import("main.zig");
 
-// pub var cells: Cells = Cells{};
-
 pub const CellStore = struct {
-    data: CellMatrixZYX = @splat(@splat(@splat(Cell{}))),
+    list: [LEN]Cell,
 
-    pub fn getCellAtZYX(self: CellStore, z: usize, y: usize, x: usize) Cell {
-        std.debug.assert(z <= MAX.z);
-        std.debug.assert(y <= MAX.y);
-        std.debug.assert(x <= MAX.x);
-        return self.data[z][y][x];
+    pub fn getCellByXYZ(self: CellStore, x: usize, y: usize, z: usize) Cell {
+        // std.debug.assert(z <= MAX.z);
+        // std.debug.assert(y <= MAX.y);
+        // std.debug.assert(x <= MAX.x);
+        const i = self.indexFromXYZ(x, y, z);
+        return self.list[i];
     }
 
-    fn setCellAtZYX(self: CellStore, z: usize, y: usize, x: usize, cell: Cell) void {
-        std.debug.assert(z <= MAX.z);
-        std.debug.assert(y <= MAX.y);
-        std.debug.assert(x <= MAX.x);
-        self.data[z][y][x] = cell;
+    pub fn getCellByIndex(self: CellStore, i: usize) Cell {
+        return self.list[i];
     }
 
-    pub fn isPassable(self: CellStore, z: usize, y: usize, x: usize) !bool {
-        return switch (self.getCellAtZYX(z, y, x).tile) {
+    pub fn isPassable(self: CellStore, x: usize, y: usize, z: usize) !bool {
+        return switch (self.getCellByXYZ(x, y, z).tile) {
             .Empty => true,
             .Floor => true,
             .Solid => false,
         };
+    }
+
+    // TODO getVisibleRange()
+    //
+    const Z_SLICE_SIZE = MAX.x * MAX.y;
+
+    pub fn getRangeAtZ(self: CellStore, z: usize) [Z_SLICE_SIZE]usize {
+        _ = self;
+        const a = z * Z_SLICE_SIZE;
+        var range = [_]usize{0} ** Z_SLICE_SIZE;
+        for (0..Z_SLICE_SIZE) |i| {
+            range[i] = a + i;
+        }
+        return range;
+    }
+
+    pub fn indexToXYZ(self: CellStore, i: usize) [3]usize {
+        _ = self;
+        const x = i % MAX.x;
+        const y = i / MAX.x;
+        const z = i / (MAX.x * MAX.y);
+        return .{ x, y, z };
+    }
+
+    pub fn indexFromXYZ(self: CellStore, x: usize, y: usize, z: usize) usize {
+        _ = self;
+        // std.debug.assert(z <= MAX.z);
+        // std.debug.assert(y <= MAX.y);
+        // std.debug.assert(x <= MAX.x);
+        return z * (MAX.x * MAX.y) + y * MAX.x + x;
     }
 };
 
@@ -64,11 +90,8 @@ const TileTag = enum {
     Solid,
 };
 
-// TODO replace with a 1d dynamic array
-const CellMatrixYX = [MAX.y][MAX.x]Cell;
-const CellMatrixZYX = [MAX.z][MAX.y][MAX.x]Cell;
-
-const MAX = m.Uvec3{ .x = 100, .y = 100, .z = 2 };
+const MAX = m.Uvec3{ .x = 100, .y = 100, .z = 1 };
+const LEN: u32 = @as(u32, MAX.x) * @as(u32, MAX.y) * @as(u32, MAX.z);
 
 const Rect2d = struct {
     origin: m.Uvec2, // top left
@@ -79,6 +102,10 @@ pub fn init(alloc: std.mem.Allocator) !*CellStore {
     const cs = try alloc.create(CellStore);
     initMap(cs);
     return cs;
+}
+
+pub fn deinit(cells: *CellStore) void {
+    defer cells.list.deinit();
 }
 
 fn initMap(cells: *CellStore) void {
@@ -93,18 +120,19 @@ fn genTerrainNoise(cells: *CellStore) void {
 
     const k = 0.35;
 
-    for (cells.data, 0..) |zs, z| {
-        for (zs, 0..) |ys, y| {
-            for (ys, 0..) |_, x| {
-                const noiseX: f32 = @floatFromInt(x);
-                const noiseY: f32 = @floatFromInt(y);
+    for (cells.list, 0..) |_, i| {
+        const xy = cells.indexToXYZ(i);
 
-                if (gen.noise2(noiseX, noiseY) > k) {
-                    cells.data[z][y][x] = Cell{ .tile = Tile{ .Solid = .Stone } };
-                } else {
-                    cells.data[z][y][x] = Cell{ .tile = Tile{ .Floor = .Dirt } };
-                }
-            }
+        const noiseX: f32 = @floatFromInt(xy[0]);
+        const noiseY: f32 = @floatFromInt(xy[1]);
+
+        if (gen.noise2(noiseX, noiseY) > k) {
+            std.debug.print("defo have a solid one", .{});
+            const cell = Cell{ .tile = Tile{ .Solid = .Stone } };
+            cells.list[i] = cell;
+        } else {
+            const cell = Cell{ .tile = Tile{ .Floor = .Dirt } };
+            cells.list[i] = cell;
         }
     }
 }
@@ -122,35 +150,39 @@ pub fn isMoveBoundsValid(pos: m.Uvec2, direction: m.Direction) bool {
         return true;
     }
 }
+
 // TODO do we care to keep metadata about rooms after build?
 // connect rooms with passageways
 // choose a room & location for some things like
 // entry & exit location
 // treasure, places of interest
 fn genRooms(cells: *CellStore) void {
-    var rooms: [16]Rect2d = undefined; // avoid allocation
-    for (rooms, 0..) |_, i| {
-        const origin = m.Uvec2{
-            .x = rng.uintLessThanBiased(u16, 80),
-            .y = rng.uintLessThanBiased(u16, 80),
-        };
-        const room = Rect2d{
-            .origin = origin,
-            .extent = m.Uvec2{
-                .x = origin.x + rng.uintLessThanBiased(u16, 20),
-                .y = origin.y + rng.uintLessThanBiased(u16, 12),
-            },
-        };
-        rooms[i] = room;
+    _ = cells;
 
-        // excavate rooms
-        for (room.origin.y..room.extent.y) |y| {
-            for (room.origin.x..room.extent.x) |x| {
-                // FIXME only first floor for now
-                cells.data[0][y][x] = Cell{
-                    .tile = Tile{ .Floor = .Stone },
-                };
-            }
-        }
-    }
+    // var rooms: [16]Rect2d = undefined; // avoid allocation
+    // for (rooms, 0..) |_, i| {
+    //     const origin = m.Uvec2{
+    //         .x = rng.uintLessThanBiased(u16, 80),
+    //         .y = rng.uintLessThanBiased(u16, 80),
+    //     };
+    //     const room = Rect2d{
+    //         .origin = origin,
+    //         .extent = m.Uvec2{
+    //             .x = origin.x + rng.uintLessThanBiased(u16, 20),
+    //             .y = origin.y + rng.uintLessThanBiased(u16, 12),
+    //         },
+    //     };
+    //     rooms[i] = room;
+
+    //     // excavate rooms
+    //     for (room.origin.y..room.extent.y) |y| {
+    //         for (room.origin.x..room.extent.x) |x| {
+    //             // FIXME only first floor for now
+    //             cells.data[0][y][x] = Cell{
+    //                 .tile = Tile{ .Floor = .Stone },
+    //             };
+    //         }
+    //     }
+    // }
+
 }

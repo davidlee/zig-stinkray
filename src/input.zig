@@ -5,8 +5,8 @@ const terrain = @import("terrain.zig");
 const m = @import("main.zig");
 const p = @import("player.zig");
 
+// constants here (TODO LSP autocomplete for them?)
 // https://github.com/Not-Nik/raylib-zig/blob/devel/lib/preludes/raylib-prelude.zig
-// would be nice if autocomplete was working for raylib ..
 
 pub fn handleKeyboard(world: *m.World) void {
     inline for (MovementKeys, 0..) |x, i| {
@@ -34,7 +34,10 @@ pub fn handleMouse(world: *m.World) void {
         const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
 
         const uvec = graphics.pxToCell(px);
-        var cell = world.cells.getCellAtZYX(0, uvec.y, uvec.x);
+        std.debug.print(" ({d}, {d}) ", .{ uvec.x, uvec.y });
+
+        const cell = world.cells.getCellByXYZ(uvec.x, uvec.y, 0);
+        const i = world.cells.indexFromXYZ(uvec.x, uvec.y, 0);
 
         const tile = switch (cell.tile) {
             .Empty => terrain.Tile{ .Solid = .Stone },
@@ -42,6 +45,7 @@ pub fn handleMouse(world: *m.World) void {
             .Solid => terrain.Tile{ .Floor = .Dirt },
         };
 
-        cell.tile = tile;
+        const new_cell = terrain.Cell{ .tile = tile };
+        world.cells.list[i] = new_cell;
     }
 }

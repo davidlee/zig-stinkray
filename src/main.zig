@@ -4,10 +4,11 @@ const gfx = @import("graphics.zig");
 const terrain = @import("terrain.zig");
 const player = @import("player.zig");
 const input = @import("input.zig");
+// const shadowcast = @import("shadowcast.zig");
 
 pub const World = struct {
     cells: *terrain.CellStore,
-    player: *player.Player,
+    player: player.Player,
 };
 
 pub fn main() anyerror!void {
@@ -21,10 +22,7 @@ pub fn main() anyerror!void {
     const world = try alloc.create(World);
     defer alloc.destroy(world);
 
-    const p = try player.init(alloc);
-    defer alloc.destroy(p);
-
-    world.player = p;
+    player.init(world);
 
     const cells = try terrain.init(alloc);
     defer alloc.destroy(cells);
