@@ -7,8 +7,9 @@ const input = @import("input.zig");
 // const shadowcast = @import("shadowcast.zig");
 
 pub const World = struct {
-    cells: *terrain.CellStore,
+    cells: terrain.CellStore,
     player: player.Player,
+    allocator: std.mem.Allocator, // expanding brain meme - like Odin's default context(?)
 };
 
 pub fn main() anyerror!void {
@@ -19,27 +20,27 @@ pub fn main() anyerror!void {
         _ = gpa.deinit();
     }
 
+    // this allocates memory for the CellStore field too
     const world = try alloc.create(World);
+    world.allocator = alloc;
+
     defer alloc.destroy(world);
 
     player.init(world);
+    terrain.init(world);
 
-    const cells = try terrain.init(alloc);
-    defer alloc.destroy(cells);
-
-    world.cells = cells;
-
-    gfx.init(alloc);
-    startRunLoop(alloc, world); // calls logic.tick()
+    gfx.init(world);
+    startRunLoop(world);
     gfx.deinit();
 
-    // deinit();
+    deinit(); // noop
 }
 
 // Main game loop
-pub fn startRunLoop(alloc: std.mem.Allocator, world: *World) void {
+// it's here rather than
+pub fn startRunLoop(world: *World) void {
     while (!rl.windowShouldClose()) {
-        tick(alloc, world);
+        tick(world);
 
         rl.beginDrawing();
         defer rl.endDrawing();
@@ -48,11 +49,12 @@ pub fn startRunLoop(alloc: std.mem.Allocator, world: *World) void {
     }
 }
 
-pub fn tick(alloc: std.mem.Allocator, world: *World) void {
-    _ = alloc;
+pub fn tick(world: *World) void {
     input.handleKeyboard(world);
     input.handleMouse(world);
 }
+
+fn deinit() void {}
 
 // pub fn deinit() void {}
 

@@ -6,8 +6,8 @@ const m = @import("main.zig");
 
 const CELL_SIZE = 16;
 
-pub fn init(alloc: std.mem.Allocator) void {
-    _ = alloc;
+pub fn init(world: *m.World) void {
+    _ = world;
 
     const screenWidth = 2048;
     const screenHeight = 2048;
@@ -30,11 +30,11 @@ pub fn pxToCell(px: m.Ivec2) m.Uvec2 {
 
 pub fn draw(world: *m.World) void {
     rl.clearBackground(rl.Color.dark_gray);
-    drawCells(world.cells);
-    drawPlayer(world.player);
+    drawCells(&world.cells);
+    drawPlayer(&world.player);
 }
 
-fn drawPlayer(player: p.Player) void {
+fn drawPlayer(player: *p.Player) void {
     const x = player.pos.x * CELL_SIZE;
     const y = player.pos.y * CELL_SIZE;
 
@@ -51,7 +51,12 @@ fn drawCells(cells: *t.CellStore) void {
 
         switch (cell.tile) {
             .Empty => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.dark_green),
-            .Floor => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.dark_brown),
+            .Floor => |mat| {
+                switch (mat) {
+                    .Iron => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.yellow),
+                    else => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.dark_brown),
+                }
+            },
             .Solid => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.orange),
         }
     }

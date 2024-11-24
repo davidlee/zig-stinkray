@@ -23,6 +23,11 @@ pub const CellStore = struct {
         return self.list[i];
     }
 
+    // pub fn atXYZ(self: CellStore, x: usize, y: usize, z: usize) Cell {
+    //     const i = self.indexFromXYZ(x, y, z);
+    //     return self.list[i];
+    // }
+
     pub fn isPassable(self: CellStore, x: usize, y: usize, z: usize) !bool {
         return switch (self.getCellByXYZ(x, y, z).tile) {
             .Empty => true,
@@ -93,24 +98,17 @@ const TileTag = enum {
 const MAX = m.Uvec3{ .x = 100, .y = 100, .z = 1 };
 const LEN: u32 = @as(u32, MAX.x) * @as(u32, MAX.y) * @as(u32, MAX.z);
 
-const Rect2d = struct {
-    origin: m.Uvec2, // top left
-    extent: m.Uvec2, // bot right
-};
-
-pub fn init(alloc: std.mem.Allocator) !*CellStore {
-    const cs = try alloc.create(CellStore);
-    initMap(cs);
-    return cs;
+pub fn init(world: *m.World) void {
+    initMap(world);
 }
 
 pub fn deinit(cells: *CellStore) void {
     defer cells.list.deinit();
 }
 
-fn initMap(cells: *CellStore) void {
-    genTerrainNoise(cells);
-    genRooms(cells);
+fn initMap(world: *m.World) void {
+    genTerrainNoise(&world.cells);
+    genRooms(world);
 }
 
 fn genTerrainNoise(cells: *CellStore) void {
@@ -127,7 +125,6 @@ fn genTerrainNoise(cells: *CellStore) void {
         const noiseY: f32 = @floatFromInt(xy[1]);
 
         if (gen.noise2(noiseX, noiseY) > k) {
-            std.debug.print("defo have a solid one", .{});
             const cell = Cell{ .tile = Tile{ .Solid = .Stone } };
             cells.list[i] = cell;
         } else {
@@ -156,33 +153,59 @@ pub fn isMoveBoundsValid(pos: m.Uvec2, direction: m.Direction) bool {
 // choose a room & location for some things like
 // entry & exit location
 // treasure, places of interest
-fn genRooms(cells: *CellStore) void {
-    _ = cells;
 
-    // var rooms: [16]Rect2d = undefined; // avoid allocation
-    // for (rooms, 0..) |_, i| {
-    //     const origin = m.Uvec2{
-    //         .x = rng.uintLessThanBiased(u16, 80),
-    //         .y = rng.uintLessThanBiased(u16, 80),
-    //     };
-    //     const room = Rect2d{
-    //         .origin = origin,
-    //         .extent = m.Uvec2{
-    //             .x = origin.x + rng.uintLessThanBiased(u16, 20),
-    //             .y = origin.y + rng.uintLessThanBiased(u16, 12),
-    //         },
-    //     };
-    //     rooms[i] = room;
+// FIXME all Z indexes
+// TEST check off by one errors
+const Room = struct { x: u16, y: u16, width: u16, height: u16 };
 
-    //     // excavate rooms
-    //     for (room.origin.y..room.extent.y) |y| {
-    //         for (room.origin.x..room.extent.x) |x| {
-    //             // FIXME only first floor for now
-    //             cells.data[0][y][x] = Cell{
-    //                 .tile = Tile{ .Floor = .Stone },
-    //             };
-    //         }
-    //     }
-    // }
+const ROOM_SIZE = .{ .min = 4, .max = 30 };
+const ROOM_COUNT = .{ .min = 4, .max = 20 };
 
+fn genRooms(world: *m.World) void {
+    const count = rng.uintLessThanBiased(u16, ROOM_COUNT.max - ROOM_COUNT.min) + ROOM_COUNT.min;
+    const size_range = ROOM_SIZE.max - ROOM_SIZE.min;
+    const z = 0; // FIXME
+
+    var rooms: [ROOM_COUNT.max]Room = undefined;
+
+    for (0..count) |i| {
+        const size = .{
+            .width = rng.uintLessThanBiased(u16, size_range) + ROOM_COUNT.min,
+            .height = rng.uintLessThanBiased(u16, size_range) + ROOM_COUNT.min,
+        };
+
+        // allow for a 1 cell border
+        const origin_max = .{
+            .x = MAX.x - size.width - 2,
+            .y = MAX.y - size.height - 2,
+        };
+
+        // account for room size in placement
+        const origin = m.Uvec2{
+            .x = rng.uintLessThanBiased(u16, origin_max.x) + 1,
+            .y = rng.uintLessThanBiased(u16, origin_max.y) + 1,
+        };
+
+        const room = Room{
+            .x = origin.x,
+            .y = origin.y,
+            .width = size.width,
+            .height = size.height,
+        };
+
+        // excavate rooms
+        for (room.x..room.x + room.width) |x| {
+            for (room.y..room.y + room.height) |y| {
+                // var cell = world.cells.getCellByXYZ(x, y, z);
+                const j = world.cells.indexFromXYZ(x, y, z);
+                world.cells.list[j] = Cell{ .tile = Tile{ .Floor = .Iron } };
+                // cell.tile = Tile{ .Floor = .Iron };
+            }
+        }
+
+        rooms[i] = room;
+    }
+    // TODO draw corridoors, doors, etc
+
+    // TODO store room definitions / metadata -> treasure tables, etc
 }
