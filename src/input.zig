@@ -32,7 +32,7 @@ const MovementKeys = .{
 pub fn handleMouse(world: *m.World) !void {
     if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
         const xy = graphics.cellXYatMouse();
-        const cell = try world.cells.get(xy.x, xy.y, 0);
+        const cell = try world.cells.get(xy.x, xy.y, world.player.z);
         //
         // Toggle cell between solid & empty space
         //

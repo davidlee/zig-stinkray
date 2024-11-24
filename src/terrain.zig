@@ -8,6 +8,16 @@ const input = @import("input.zig");
 const player = @import("player.zig");
 const m = @import("main.zig");
 
+// u16 max is 65535; cube root is 40
+// u32 max is 4294967295; cube root is 1625
+// u64 max is 18446744073709551615; cube root is 2642245
+//
+// FIXME make sure we're not using too-small types which will cause
+// issues with larger cell stores
+
+const MAX = m.Uvec3{ .x = 90, .y = 90, .z = 1 };
+const LEN: u32 = @as(usize, MAX.x) * @as(usize, MAX.y) * @as(usize, MAX.z);
+
 pub const CellStoreError = error{
     InvalidCoordinate,
 };
@@ -91,6 +101,10 @@ pub const CellStore = struct {
     }
 };
 
+// pub fn subi32fromUsize(u: usize, d: anytype) {
+
+// }
+
 pub const Tile = union(TileTag) {
     Empty,
     Floor: CellMaterial,
@@ -118,9 +132,6 @@ const TileTag = enum {
     Floor,
     Solid,
 };
-
-const MAX = m.Uvec3{ .x = 100, .y = 100, .z = 1 };
-const LEN: u32 = @as(u32, MAX.x) * @as(u32, MAX.y) * @as(u32, MAX.z);
 
 pub fn init(world: *m.World) void {
     initMap(world);
@@ -178,7 +189,7 @@ pub fn isMoveBoundsValid(pos: m.Uvec2, direction: m.Direction) bool {
 // add treasure, places of interest
 // FIXME handle all Z indexes
 // TEST check off by one errors
-const Room = struct { x: u16, y: u16, width: u16, height: u16 };
+const Room = struct { x: usize, y: usize, width: usize, height: usize };
 
 const ROOM_SIZE = .{ .min = 4, .max = 30 };
 const ROOM_COUNT = .{ .min = 4, .max = 20 };
@@ -192,8 +203,8 @@ fn genRooms(world: *m.World) !void {
 
     for (0..count) |i| {
         const size = .{
-            .width = rng.uintLessThanBiased(u16, size_range) + ROOM_COUNT.min,
-            .height = rng.uintLessThanBiased(u16, size_range) + ROOM_COUNT.min,
+            .width = rng.uintLessThanBiased(usize, size_range) + ROOM_COUNT.min,
+            .height = rng.uintLessThanBiased(usize, size_range) + ROOM_COUNT.min,
         };
 
         // allow for a 1 cell border
@@ -204,8 +215,8 @@ fn genRooms(world: *m.World) !void {
 
         // account for room size in placement
         const origin = m.Uvec2{
-            .x = rng.uintLessThanBiased(u16, origin_max.x) + 1,
-            .y = rng.uintLessThanBiased(u16, origin_max.y) + 1,
+            .x = rng.uintLessThanBiased(usize, origin_max.x) + 1,
+            .y = rng.uintLessThanBiased(usize, origin_max.y) + 1,
         };
 
         const room = Room{

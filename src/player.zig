@@ -35,10 +35,21 @@ pub const Player = struct {
             return MoveCommandError.OutOfBounds;
         }
 
-        const new_pos = m.Uvec2{
-            .x = @intCast(self.pos.x + delta.x),
-            .y = @intCast(self.pos.y + delta.y),
-        };
+        var new_pos = self.pos; // this is a clone, right?
+
+        // instead of casting usize to isize (and risking overflow),
+        // cast the signed value to usize. Subtract if necessary.
+        if (delta.x < 0) {
+            new_pos.x -|= @intCast(-delta.x);
+        } else {
+            new_pos.x +|= @intCast(delta.x);
+        }
+
+        if (delta.y < 0) {
+            new_pos.y -|= @intCast(-delta.y);
+        } else {
+            new_pos.y +|= @intCast(delta.y);
+        }
 
         if (world.cells.isPassable(new_pos.x, new_pos.y, self.z) catch false) {
             world.player.pos = new_pos;

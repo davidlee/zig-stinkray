@@ -72,7 +72,7 @@ fn drawPlayer(player: *p.Player) void {
     const x = player.pos.x * CELL_SIZE;
     const y = player.pos.y * CELL_SIZE;
 
-    rl.drawRectangle(x, y, CELL_SIZE, CELL_SIZE, rl.Color.red);
+    rl.drawRectangle(@intCast(x), @intCast(y), CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
 fn drawCells(cells: *t.CellStore) !void {
@@ -83,6 +83,9 @@ fn drawCells(cells: *t.CellStore) !void {
 
         const px: i32 = @intCast(xy[0] * CELL_SIZE);
         const py: i32 = @intCast(xy[1] * CELL_SIZE);
+
+        // const px: i32 = @intCast(xy[0] * CELL_SIZE);
+        // const py: i32 = @intCast(xy[1] * CELL_SIZE);
 
         switch (cell.tile) {
             .Empty => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.dark_green),
