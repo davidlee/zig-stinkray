@@ -45,7 +45,8 @@ pub fn deinit() void {
     defer rl.closeWindow();
 }
 
-// TODO - if using a camera, we have to account for its translation
+// FIXME - if using a camera, we have to account for its translation
+// NOTE doesn't check bounds
 fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
     return m.Uvec2{
         .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
@@ -53,7 +54,6 @@ fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
     };
 }
 
-// NOTE doesn't check it's valid
 pub fn cellXYatMouse() m.Uvec2 {
     const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
     return pxToCellXY(px);
@@ -67,7 +67,17 @@ pub fn draw(world: *m.World) void {
     camera.rotation = rot;
     drawCells(&world.cells) catch std.log.debug("ERR: DrawCells", .{});
     drawPlayer(&world.player);
+    drawRegion(world);
     camera.end();
+}
+
+fn drawRegion(world: *m.World) void {
+    for (world.region.items) |uvec| {
+        const x = m.cast(i32, uvec.x * CELL_SIZE);
+        const y = m.cast(i32, uvec.y * CELL_SIZE);
+        // std.log.debug("itamm {d},{d}", .{ x, y });
+        rl.drawRectangle(x, y, CELL_SIZE / 2, CELL_SIZE / 2, rl.Color.purple);
+    }
 }
 
 fn drawPlayer(player: *p.Player) void {
@@ -77,17 +87,14 @@ fn drawPlayer(player: *p.Player) void {
     rl.drawRectangle(@intCast(x), @intCast(y), CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
+// TODO only draw visible cells
+//
 fn drawCells(cells: *t.CellStore) !void {
-    // TODO only draw visible cells
-    // or at least on the same Z index ..
     for (cells._list, 0..) |cell, i| {
         const xy = try cells.XYZof(i);
 
         const px: i32 = @intCast(xy[0] * CELL_SIZE);
         const py: i32 = @intCast(xy[1] * CELL_SIZE);
-
-        // const px: i32 = @intCast(xy[0] * CELL_SIZE);
-        // const py: i32 = @intCast(xy[1] * CELL_SIZE);
 
         switch (cell.tile) {
             .Empty => rl.drawRectangle(px, py, CELL_SIZE, CELL_SIZE, rl.Color.dark_green),

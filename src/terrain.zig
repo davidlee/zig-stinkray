@@ -104,6 +104,28 @@ pub const CellStore = struct {
         }
         return z * (MAX.x * MAX.y) + y * MAX.x + x;
     }
+
+    pub fn toggleCellPassable(self: *CellStore, x: usize, y: usize, z: usize) !void {
+        const cell = try self.get(x, y, z);
+
+        const tile = switch (cell.tile) {
+            .Empty => Tile{ .Solid = .Stone },
+            .Floor => Tile{ .Solid = .Stone },
+            .Solid => Tile{ .Floor = .Dirt },
+        };
+        const new_cell = Cell{ .tile = tile };
+        try self.set(x, y, z, new_cell);
+    }
+
+    // stash xy coords in world.region, to draw
+    pub fn squareAround(self: *CellStore, x: usize, y: usize, radius: usize, array_list: *std.ArrayList(m.Uvec2)) !void {
+        _ = self;
+        for (x -| radius..x + radius) |cx| {
+            for (y -| radius..y + radius) |cy| {
+                try array_list.append(m.Uvec2{ .x = cx, .y = cy });
+            }
+        }
+    }
 };
 
 // pub fn subi32fromUsize(u: usize, d: anytype) {

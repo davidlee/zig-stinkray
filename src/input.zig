@@ -54,18 +54,8 @@ const MovementKeys = .{
 };
 
 pub fn handleMouse(world: *m.World) !void {
-    if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
-        const xy = graphics.cellXYatMouse();
-        const cell = try world.cells.get(xy.x, xy.y, world.player.z);
-        //
-        // Toggle cell between solid & empty space
-        //
-        const tile = switch (cell.tile) {
-            .Empty => terrain.Tile{ .Solid = .Stone },
-            .Floor => terrain.Tile{ .Solid = .Stone },
-            .Solid => terrain.Tile{ .Floor = .Dirt },
-        };
-        const new_cell = terrain.Cell{ .tile = tile };
-        try world.cells.set(xy.x, xy.y, 0, new_cell);
+    world.region.clearAndFree();
+    if (rl.isMouseButtonDown(rl.MouseButton.mouse_button_left)) {
+        try world.cells.squareAround(world.player.pos.x, world.player.pos.y, 5, &world.region);
     }
 }

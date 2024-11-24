@@ -9,8 +9,9 @@ const input = @import("input.zig");
 pub const World = struct {
     cells: terrain.CellStore,
     player: player.Player,
-    allocator: std.mem.Allocator, // expanding brain meme - like Odin's default context(?)
+    allocator: std.mem.Allocator,
     camera: rl.Camera2D,
+    region: std.ArrayList(Uvec2),
 };
 
 pub fn main() anyerror!void {
@@ -24,6 +25,7 @@ pub fn main() anyerror!void {
     // this allocates memory for the CellStore field too
     const world = try alloc.create(World);
     world.allocator = alloc;
+    world.region = try std.ArrayList(Uvec2).initCapacity(alloc, 1000);
 
     defer alloc.destroy(world);
 
@@ -34,7 +36,7 @@ pub fn main() anyerror!void {
     startRunLoop(world);
     gfx.deinit();
 
-    deinit(); // noop
+    deinit(world); // noop
 }
 
 // Main game loop
@@ -55,7 +57,9 @@ pub fn tick(world: *World) void {
     input.handleMouse(world) catch std.log.debug("ERR: handleMouse ", .{});
 }
 
-fn deinit() void {}
+fn deinit(world: *World) void {
+    world.region.deinit();
+}
 
 //
 // utility functons .. keep an eye on these
@@ -68,15 +72,15 @@ fn deinit() void {}
 //
 pub fn addSignedtoUsize(u: usize, i: anytype) usize {
     if (i < 0) {
-        return u - cast(usize, -i);
+        return u -| cast(usize, -i); // "saturating subtraction" - bounds safe.
     } else {
-        return u + cast(usize, i);
+        return u +| cast(usize, i);
     }
 }
 
 // short for @as(usize, @intCast(v));
 //
-inline fn cast(T: type, v: anytype) T {
+pub inline fn cast(T: type, v: anytype) T {
     return @intCast(v);
 }
 
