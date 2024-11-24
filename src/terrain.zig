@@ -117,12 +117,23 @@ pub const CellStore = struct {
         try self.set(x, y, z, new_cell);
     }
 
+    // // stash xy coords in world.region, to draw
+    // pub fn squareAround(self: *CellStore, x: usize, y: usize, radius: usize, array_list: *std.ArrayList(m.Uvec2)) !void {
+    //     _ = self;
+    //     for (x -| radius..x + radius) |cx| {
+    //         for (y -| radius..y + radius) |cy| {
+    //             try array_list.append(m.Uvec2{ .x = cx, .y = cy });
+    //         }
+    //     }
+    // }
+
     // stash xy coords in world.region, to draw
-    pub fn squareAround(self: *CellStore, x: usize, y: usize, radius: usize, array_list: *std.ArrayList(m.Uvec2)) !void {
-        _ = self;
+    pub fn findBlockingCellsAround(self: *CellStore, x: usize, y: usize, z: usize, radius: usize, array_list: *std.ArrayList(m.Uvec2)) !void {
         for (x -| radius..x + radius) |cx| {
             for (y -| radius..y + radius) |cy| {
-                try array_list.append(m.Uvec2{ .x = cx, .y = cy });
+                if (!(self.isPassable(cx, cy, z) catch false)) {
+                    try array_list.append(m.Uvec2{ .x = cx, .y = cy });
+                }
             }
         }
     }

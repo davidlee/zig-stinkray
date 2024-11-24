@@ -56,6 +56,6 @@ const MovementKeys = .{
 pub fn handleMouse(world: *m.World) !void {
     world.region.clearAndFree();
     if (rl.isMouseButtonDown(rl.MouseButton.mouse_button_left)) {
-        try world.cells.squareAround(world.player.pos.x, world.player.pos.y, 5, &world.region);
+        try world.cells.findBlockingCellsAround(world.player.pos.x, world.player.pos.y, world.player.z, 5, &world.region);
     }
 }

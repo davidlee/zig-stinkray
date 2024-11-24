@@ -4,7 +4,8 @@ const p = @import("player.zig");
 const t = @import("terrain.zig");
 const m = @import("main.zig");
 
-const CELL_SIZE = 16;
+const CELL_SIZE = 15;
+const MIDPOINT = 8;
 
 var camera: rl.Camera2D = undefined; // hhhnnnnggg
 
@@ -71,12 +72,94 @@ pub fn draw(world: *m.World) void {
     camera.end();
 }
 
+// TODO maybe worth exploring: after terrain generation,
+// visit each cell's neighbours and store a bitmask which encodes which neighbours
+// block line of sight; probably 4 bits is enough.
+// it's likely to help with edge / wall detection at runtime
+// (although I never want to have to care about cache invalidation)
+
 fn drawRegion(world: *m.World) void {
-    for (world.region.items) |uvec| {
-        const x = m.cast(i32, uvec.x * CELL_SIZE);
-        const y = m.cast(i32, uvec.y * CELL_SIZE);
-        // std.log.debug("itamm {d},{d}", .{ x, y });
-        rl.drawRectangle(x, y, CELL_SIZE / 2, CELL_SIZE / 2, rl.Color.purple);
+    // let's find nearby cells and draw lines to their "significant corners"
+    // we can work out wall detection and culling later.
+    //
+    const pos = world.player.pos;
+
+    const nw = 0b1000;
+    const ne = 0b0100;
+    const se = 0b0010;
+    const sw = 0b0001;
+
+    // each cell has 4 corners. considering only single cells and not walls:
+    // one is usually out of sight;
+    // sometimes two, if x or y are equal to the viewer.
+    // in the usual case where three corners are visible,
+    // only the two on the outside mark boundaries.
+
+    // const significant_corners: [_]u4 = .{ // NW NE SE SW
+    //     0b0101,0b0011,0b1010, // y < (above)
+    //     0b0110,0b0000,0b1001, // player
+    //     0b1010,0b1100,0b0101, // y > (below)
+    //     // x < player > x
+    //     // left       right
+    // };
+
+    const px = m.cast(i32, pos.x * CELL_SIZE + MIDPOINT);
+    const py = m.cast(i32, pos.y * CELL_SIZE + MIDPOINT);
+
+    // neither efficient nor elegant. that's ok for now.
+    // this code won't stay..
+    //
+    // NOTE: if we're iterating over cells around the player
+    // we could make assumptions about ordering to improve perf
+
+    for (world.region.items) |xy| {
+        var corners: u4 = 0b0000;
+
+        if (xy.x == pos.x) {
+            if (xy.y < pos.y) { // directly above player
+                corners = (se ^ sw);
+            } else { // directly below
+                corners = (ne ^ nw);
+            }
+        } else if (xy.y == pos.y) {
+            if (xy.x < pos.x) { // directly left of player
+                corners = (ne ^ se);
+            } else { // directly right
+                corners = (nw ^ sw);
+            }
+        } else {
+            if (xy.x < pos.x) {
+                if (xy.y < pos.y) { // it's above left
+                    corners = (sw ^ ne);
+                } else { // below left
+                    corners = (nw ^ se);
+                }
+            } else {
+                if (xy.y < pos.y) { // it's above right
+                    corners = (nw ^ se);
+                } else { // below right
+                    corners = (sw ^ ne);
+                }
+            }
+        }
+
+        const ax = m.cast(i32, xy.x * CELL_SIZE);
+        const ay = m.cast(i32, xy.y * CELL_SIZE);
+        const bx = m.cast(i32, (xy.x + 1) * CELL_SIZE);
+        const by = m.cast(i32, (xy.y + 1) * CELL_SIZE);
+
+        if (corners & nw > 0) {
+            rl.drawLine(px, py, ax, ay, rl.Color.black);
+        }
+        if (corners & ne > 0) {
+            rl.drawLine(px, py, bx, ay, rl.Color.black);
+        }
+        if (corners & se > 0) {
+            rl.drawLine(px, py, bx, by, rl.Color.black);
+        }
+        if (corners & sw > 0) {
+            rl.drawLine(px, py, ax, by, rl.Color.black);
+        }
     }
 }
 
