@@ -9,19 +9,19 @@ const CELL_SIZE = 16;
 var camera: rl.Camera2D = undefined; // hhhnnnnggg
 
 pub fn init(world: *m.World) void {
-    // _ = world;
+    _ = world;
     const screenWidth = 2048;
     const screenHeight = 2048;
 
     rl.initWindow(screenWidth, screenHeight, "raylib-zig [core] example - basic window");
     camera = rl.Camera2D{
         .offset = rl.Vector2.init(
-            @floatFromInt(world.player.pos.x * CELL_SIZE),
-            @floatFromInt(world.player.pos.y * CELL_SIZE),
-        ),
-        .target = rl.Vector2.init(
             @floatFromInt(screenWidth / 2),
             @floatFromInt(screenHeight / 2),
+        ),
+        .target = rl.Vector2.init(0, 0
+        // @floatFromInt(world.player.pos.x * CELL_SIZE),
+        // @floatFromInt(world.player.pos.y * CELL_SIZE),
         ),
         .rotation = 0,
         .zoom = 1,
@@ -29,6 +29,16 @@ pub fn init(world: *m.World) void {
 
     _ = camera;
     rl.setTargetFPS(60);
+}
+
+fn playerFollowCameraTarget(world: *m.World) rl.Vector2 {
+    const x = world.player.pos.x * CELL_SIZE;
+    const y = world.player.pos.y * CELL_SIZE;
+
+    return rl.Vector2.init(
+        @floatFromInt(x),
+        @floatFromInt(y),
+    );
 }
 
 pub fn deinit() void {
@@ -51,10 +61,11 @@ pub fn cellXYatMouse() m.Uvec2 {
 
 pub fn draw(world: *m.World) void {
     rl.clearBackground(rl.Color.dark_gray);
-    // camera.begin();
+    camera.begin();
+    camera.target = playerFollowCameraTarget(world);
     drawCells(&world.cells) catch std.log.debug("ERR: DrawCells", .{});
     drawPlayer(&world.player);
-    // camera.end();
+    camera.end();
 }
 
 fn drawPlayer(player: *p.Player) void {

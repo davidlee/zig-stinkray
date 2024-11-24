@@ -172,13 +172,11 @@ pub fn isMoveBoundsValid(pos: m.Uvec2, direction: m.Direction) bool {
     }
 }
 
-// TODO do we care to keep metadata about rooms after build?
+// TODO keep metadata about rooms after build
 // connect rooms with passageways
-// choose a room & location for some things like
-// entry & exit location
-// treasure, places of interest
-
-// FIXME all Z indexes
+// choose a room & location for some things like entry & exit location
+// add treasure, places of interest
+// FIXME handle all Z indexes
 // TEST check off by one errors
 const Room = struct { x: u16, y: u16, width: u16, height: u16 };
 

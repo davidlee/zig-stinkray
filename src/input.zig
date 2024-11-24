@@ -31,20 +31,16 @@ const MovementKeys = .{
 
 pub fn handleMouse(world: *m.World) !void {
     if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
-        // const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
-        // const uvec = graphics.pxToCellXY(px);
         const xy = graphics.cellXYatMouse();
-
-        // std.debug.print(" ({d}, {d}) ", .{ uvec.x, uvec.y });
-
         const cell = try world.cells.get(xy.x, xy.y, 0);
-
+        //
+        // Toggle cell between solid & empty space
+        //
         const tile = switch (cell.tile) {
             .Empty => terrain.Tile{ .Solid = .Stone },
             .Floor => terrain.Tile{ .Solid = .Stone },
             .Solid => terrain.Tile{ .Floor = .Dirt },
         };
-
         const new_cell = terrain.Cell{ .tile = tile };
         try world.cells.set(xy.x, xy.y, 0, new_cell);
     }
