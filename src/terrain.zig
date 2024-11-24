@@ -9,18 +9,31 @@ const player = @import("player.zig");
 const m = @import("main.zig");
 
 pub const CellStore = struct {
-    list: [LEN]Cell,
+    // this should be considered private; prefer access through methods
+    _list: [LEN]Cell,
 
-    pub fn getCellByXYZ(self: CellStore, x: usize, y: usize, z: usize) Cell {
+    // TODO when I'm feeling smart enough, build a custom iterator
+    // to avoid leaking internals directly
+
+    pub fn get(self: CellStore, x: usize, y: usize, z: usize) Cell {
         // std.debug.assert(z <= MAX.z);
         // std.debug.assert(y <= MAX.y);
         // std.debug.assert(x <= MAX.x);
-        const i = self.indexFromXYZ(x, y, z);
-        return self.list[i];
+        const i = self.indexOf(x, y, z);
+        return self._list[i];
     }
 
-    pub fn getCellByIndex(self: CellStore, i: usize) Cell {
-        return self.list[i];
+    pub fn getByIndex(self: CellStore, i: usize) Cell {
+        return self._list[i];
+    }
+
+    fn setByIndex(self: *CellStore, i: usize, cell: Cell) void {
+        self._list[i] = cell;
+    }
+
+    pub fn set(self: *CellStore, x: usize, y: usize, z: usize, cell: Cell) void {
+        const i = self.indexOf(x, y, z);
+        self.setByIndex(i, cell);
     }
 
     // pub fn atXYZ(self: CellStore, x: usize, y: usize, z: usize) Cell {
@@ -29,7 +42,7 @@ pub const CellStore = struct {
     // }
 
     pub fn isPassable(self: CellStore, x: usize, y: usize, z: usize) !bool {
-        return switch (self.getCellByXYZ(x, y, z).tile) {
+        return switch (self.get(x, y, z).tile) {
             .Empty => true,
             .Floor => true,
             .Solid => false,
@@ -38,19 +51,19 @@ pub const CellStore = struct {
 
     // TODO getVisibleRange()
     //
-    const Z_SLICE_SIZE = MAX.x * MAX.y;
+    // const Z_SLICE_SIZE = MAX.x * MAX.y;
 
-    pub fn getRangeAtZ(self: CellStore, z: usize) [Z_SLICE_SIZE]usize {
-        _ = self;
-        const a = z * Z_SLICE_SIZE;
-        var range = [_]usize{0} ** Z_SLICE_SIZE;
-        for (0..Z_SLICE_SIZE) |i| {
-            range[i] = a + i;
-        }
-        return range;
-    }
+    // pub fn getRangeAtZ(self: CellStore, z: usize) [Z_SLICE_SIZE]usize {
+    //     _ = self;
+    //     const a = z * Z_SLICE_SIZE;
+    //     var range = [_]usize{0} ** Z_SLICE_SIZE;
+    //     for (0..Z_SLICE_SIZE) |i| {
+    //         range[i] = a + i;
+    //     }
+    //     return range;
+    // }
 
-    pub fn indexToXYZ(self: CellStore, i: usize) [3]usize {
+    pub fn XYZof(self: CellStore, i: usize) [3]usize {
         _ = self;
         const x = i % MAX.x;
         const y = i / MAX.x;
@@ -58,7 +71,7 @@ pub const CellStore = struct {
         return .{ x, y, z };
     }
 
-    pub fn indexFromXYZ(self: CellStore, x: usize, y: usize, z: usize) usize {
+    pub fn indexOf(self: CellStore, x: usize, y: usize, z: usize) usize {
         _ = self;
         // std.debug.assert(z <= MAX.z);
         // std.debug.assert(y <= MAX.y);
@@ -103,7 +116,7 @@ pub fn init(world: *m.World) void {
 }
 
 pub fn deinit(cells: *CellStore) void {
-    defer cells.list.deinit();
+    defer cells._list.deinit();
 }
 
 fn initMap(world: *m.World) void {
@@ -118,18 +131,18 @@ fn genTerrainNoise(cells: *CellStore) void {
 
     const k = 0.35;
 
-    for (cells.list, 0..) |_, i| {
-        const xy = cells.indexToXYZ(i);
+    for (cells._list, 0..) |_, i| {
+        const xy = cells.XYZof(i);
 
         const noiseX: f32 = @floatFromInt(xy[0]);
         const noiseY: f32 = @floatFromInt(xy[1]);
 
         if (gen.noise2(noiseX, noiseY) > k) {
             const cell = Cell{ .tile = Tile{ .Solid = .Stone } };
-            cells.list[i] = cell;
+            cells.setByIndex(i, cell);
         } else {
             const cell = Cell{ .tile = Tile{ .Floor = .Dirt } };
-            cells.list[i] = cell;
+            cells.setByIndex(i, cell);
         }
     }
 }
@@ -196,10 +209,8 @@ fn genRooms(world: *m.World) void {
         // excavate rooms
         for (room.x..room.x + room.width) |x| {
             for (room.y..room.y + room.height) |y| {
-                // var cell = world.cells.getCellByXYZ(x, y, z);
-                const j = world.cells.indexFromXYZ(x, y, z);
-                world.cells.list[j] = Cell{ .tile = Tile{ .Floor = .Iron } };
-                // cell.tile = Tile{ .Floor = .Iron };
+                const cell = Cell{ .tile = Tile{ .Floor = .Iron } };
+                world.cells.set(x, y, z, cell);
             }
         }
 

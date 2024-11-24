@@ -34,10 +34,11 @@ pub fn handleMouse(world: *m.World) void {
         const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
 
         const uvec = graphics.pxToCell(px);
+
         std.debug.print(" ({d}, {d}) ", .{ uvec.x, uvec.y });
 
-        const cell = world.cells.getCellByXYZ(uvec.x, uvec.y, 0);
-        const i = world.cells.indexFromXYZ(uvec.x, uvec.y, 0);
+        const cell = world.cells.get(uvec.x, uvec.y, 0);
+        // const i = world.cells.indexOf(uvec.x, uvec.y, 0);
 
         const tile = switch (cell.tile) {
             .Empty => terrain.Tile{ .Solid = .Stone },
@@ -46,6 +47,6 @@ pub fn handleMouse(world: *m.World) void {
         };
 
         const new_cell = terrain.Cell{ .tile = tile };
-        world.cells.list[i] = new_cell;
+        world.cells.set(uvec.x, uvec.y, 0, new_cell);
     }
 }

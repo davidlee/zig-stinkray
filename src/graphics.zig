@@ -43,8 +43,8 @@ fn drawPlayer(player: *p.Player) void {
 
 fn drawCells(cells: *t.CellStore) void {
     // TODO only draw visible cells
-    for (cells.list, 0..) |cell, i| {
-        const xy = cells.indexToXYZ(i);
+    for (cells._list, 0..) |cell, i| {
+        const xy = cells.XYZof(i);
 
         const px: i32 = @intCast(xy[0] * CELL_SIZE);
         const py: i32 = @intCast(xy[1] * CELL_SIZE);
