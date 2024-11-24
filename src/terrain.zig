@@ -8,7 +8,7 @@ const input = @import("input.zig");
 const player = @import("player.zig");
 const m = @import("main.zig");
 
-const CellStoreError = error{
+pub const CellStoreError = error{
     InvalidCoordinate,
 };
 

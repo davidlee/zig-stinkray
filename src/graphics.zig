@@ -36,11 +36,17 @@ pub fn deinit() void {
 }
 
 // TODO - if using a camera, we have to account for its translation
-pub fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
+fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
     return m.Uvec2{
         .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
         .y = @as(u16, @intCast(px.y)) / CELL_SIZE,
     };
+}
+
+// NOTE doesn't check it's valid
+pub fn cellXYatMouse() m.Uvec2 {
+    const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
+    return pxToCellXY(px);
 }
 
 pub fn draw(world: *m.World) void {
