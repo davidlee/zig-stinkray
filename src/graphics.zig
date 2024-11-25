@@ -8,22 +8,21 @@ const CELL_SIZE = 15;
 const MIDPOINT = 8;
 
 var camera: rl.Camera2D = undefined; // hhhnnnnggg
+var screenWidth: i32 = undefined;
+var screenHeight: i32 = undefined;
 
 pub fn init(world: *m.World) void {
     _ = world;
-    const screenWidth = 2048;
-    const screenHeight = 2048;
+    screenWidth = rl.getScreenWidth();
+    screenHeight = rl.getScreenHeight();
 
     rl.initWindow(screenWidth, screenHeight, "raylib-zig [core] example - basic window");
+    const fw: f32 = @floatFromInt(screenWidth);
+    const fh: f32 = @floatFromInt(screenHeight);
+
     camera = rl.Camera2D{
-        .offset = rl.Vector2.init(
-            @floatFromInt(screenWidth / 2),
-            @floatFromInt(screenHeight / 2),
-        ),
-        .target = rl.Vector2.init(0, 0
-        // @floatFromInt(world.player.pos.x * CELL_SIZE),
-        // @floatFromInt(world.player.pos.y * CELL_SIZE),
-        ),
+        .offset = rl.Vector2.init(fw / 2.0, fh / 2.0),
+        .target = rl.Vector2.init(0, 0),
         .rotation = 0,
         .zoom = 1,
     };
