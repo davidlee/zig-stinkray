@@ -26,6 +26,7 @@ pub fn main() anyerror!void {
     const world = try alloc.create(World);
     world.allocator = alloc;
     world.region = try std.ArrayList(Uvec2).initCapacity(alloc, 1000);
+    world.cells._arraylist = try std.ArrayList(terrain.Cell).initCapacity(alloc, terrain.LEN);
 
     defer alloc.destroy(world);
 
@@ -58,6 +59,7 @@ pub fn tick(world: *World) void {
 }
 
 fn deinit(world: *World) void {
+    world.cells._arraylist.deinit();
     world.region.deinit();
 }
 

@@ -8,15 +8,8 @@ const input = @import("input.zig");
 const player = @import("player.zig");
 const m = @import("main.zig");
 
-// u16 max is 65535; cube root is 40
-// u32 max is 4294967295; cube root is 1625
-// u64 max is 18446744073709551615; cube root is 2642245
-//
-// FIXME make sure we're not using too-small types which will cause
-// issues with larger cell stores
-
-const MAX = m.Uvec3{ .x = 90, .y = 90, .z = 1 };
-const LEN: u32 = @as(usize, MAX.x) * @as(usize, MAX.y) * @as(usize, MAX.z);
+const MAX = m.Uvec3{ .x = 100, .y = 100, .z = 2 };
+pub const LEN: usize = @as(usize, MAX.x) * @as(usize, MAX.y) * @as(usize, MAX.z);
 
 pub const CellStoreError = error{
     InvalidCoordinate,
@@ -24,35 +17,38 @@ pub const CellStoreError = error{
 
 pub const CellStore = struct {
     // this should be considered private; prefer access through methods
-    _list: [LEN]Cell,
+    // _list: [LEN]Cell,
+    _arraylist: std.ArrayList(Cell),
 
     // TODO when I'm feeling smart enough, build a custom iterator
     // to avoid leaking internals directly
 
+    fn _get(self: CellStore, i: usize) Cell {
+        return self._arraylist.items[i];
+    }
+
+    fn _set(self: *CellStore, i: usize, cell: Cell) void {
+        self._arraylist.items[i] = cell;
+    }
+
+    fn _setInitial(self: *CellStore, i: usize, cell: Cell) void {
+        self._arraylist.insertAssumeCapacity(i, cell);
+    }
+
     pub fn get(self: CellStore, x: usize, y: usize, z: usize) CellStoreError!Cell {
         const i = try self.indexOf(x, y, z);
-        return self._list[i];
+        return self._get(i);
     }
 
     // WARN UNCHECKED
     pub fn getByIndex(self: CellStore, i: usize) Cell {
-        return self._list[i];
-    }
-
-    // WARN UNCHECKED
-    fn setByIndex(self: *CellStore, i: usize, cell: Cell) void {
-        self._list[i] = cell;
+        return self._get(i);
     }
 
     pub fn set(self: *CellStore, x: usize, y: usize, z: usize, cell: Cell) CellStoreError!void {
         const i = try self.indexOf(x, y, z);
-        self.setByIndex(i, cell);
+        self._set(i, cell);
     }
-
-    // pub fn atXYZ(self: CellStore, x: usize, y: usize, z: usize) Cell {
-    //     const i = self.indexFromXYZ(x, y, z);
-    //     return self.list[i];
-    // }
 
     pub fn isPassable(self: CellStore, x: usize, y: usize, z: usize) CellStoreError!bool {
         const cell = try self.get(x, y, z);
@@ -165,10 +161,6 @@ pub fn init(world: *m.World) void {
     initMap(world);
 }
 
-pub fn deinit(cells: *CellStore) void {
-    defer cells._list.deinit();
-}
-
 fn initMap(world: *m.World) void {
     genTerrainNoise(&world.cells) catch std.log.debug("ERR: genTerrainNoise", .{});
     genRooms(world) catch std.log.debug("ERR: getRooms", .{});
@@ -181,7 +173,7 @@ fn genTerrainNoise(cells: *CellStore) !void {
 
     const k = 0.35;
 
-    for (cells._list, 0..) |_, i| {
+    for (0..LEN) |i| {
         const xy = try cells.XYZof(i);
 
         const noiseX: f32 = @floatFromInt(xy[0]);
@@ -189,10 +181,10 @@ fn genTerrainNoise(cells: *CellStore) !void {
 
         if (gen.noise2(noiseX, noiseY) > k) {
             const cell = Cell{ .tile = Tile{ .Solid = .Stone } };
-            cells.setByIndex(i, cell);
+            cells._setInitial(i, cell);
         } else {
             const cell = Cell{ .tile = Tile{ .Floor = .Dirt } };
-            cells.setByIndex(i, cell);
+            cells._setInitial(i, cell);
         }
     }
 }
