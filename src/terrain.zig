@@ -2,22 +2,24 @@ const std = @import("std");
 const rng = std.crypto.random;
 
 const rl = @import("raylib");
-const znoise = @import("znoise");
 
 const input = @import("input.zig");
 const player = @import("player.zig");
 const m = @import("main.zig");
+const wgen = @import("world_gen.zig");
 
-const MAX = m.Uvec3{ .x = 100, .y = 100, .z = 2 };
+pub const MAX = m.Uvec3{ .x = 200, .y = 200, .z = 2 };
 pub const LEN: usize = @as(usize, MAX.x) * @as(usize, MAX.y) * @as(usize, MAX.z);
 
 pub const CellStoreError = error{
     InvalidCoordinate,
 };
 
+pub const RectAddr = struct { cell: Cell, x: usize, y: usize };
+
 pub const CellStore = struct {
+
     // this should be considered private; prefer access through methods
-    // _list: [LEN]Cell,
     _arraylist: std.ArrayList(Cell),
 
     // TODO when I'm feeling smart enough, build a custom iterator
@@ -31,7 +33,7 @@ pub const CellStore = struct {
         self._arraylist.items[i] = cell;
     }
 
-    fn _setInitial(self: *CellStore, i: usize, cell: Cell) void {
+    pub fn _setInitial(self: *CellStore, i: usize, cell: Cell) void {
         self._arraylist.insertAssumeCapacity(i, cell);
     }
 
@@ -65,27 +67,40 @@ pub const CellStore = struct {
         return false;
     }
 
-    // an optimisation to prevent rendering many cells
-    // return (a slice?) all potentially visible cells at a given Z, around a given X,Y
-    // with given width & height.
-    // FIXME
-    // TODO
-    // pub fn getVisible(self: CellStore, x: usize, y: usize, z: usize, width: usize, height: usize) ![]const Cell {
-    //     const w = std.math.clamp(width, 0, MAX.x);
-    //     const h = std.math.clamp(height, 0, MAX.y);
-    //     const ax = x -| w / 2;
-    //     const ay = y -| h / 2;
-    //     const bx = std.math.clamp(x +| w / 2, 0, MAX.x);
-    //     const by = std.math.clamp(y +| h / 2, 0, MAX.y);
-    //     const start_idx = try self.indexOf(ax, ay, z);
-    //     const end_idx = try self.indexOf(bx, by, z);
+    // gets a rectangle of cells centered on x,y
+    // and appends them to al
+    pub fn getRect(
+        self: CellStore,
+        al: *std.ArrayList(RectAddr),
+        x: usize,
+        y: usize,
+        z: usize,
+        width: usize,
+        height: usize,
+    ) !void {
+        try al.ensureTotalCapacity(width * height);
+        const x0: usize = x -| width / 2;
+        const y0: usize = y -| height / 2;
+        const start_index: usize = try self.indexOf(x0, y0, z);
+        var row: usize = 0;
+        while (row < height) : (row += 1) {
+            const dy = y0 + row;
+            const vert_index_offset = row * MAX.x;
+            var col: usize = 0;
+            while (col < width) : (col += 1) {
+                const dx = x0 + col;
+                const i = start_index + vert_index_offset + col;
+                al.appendAssumeCapacity(RectAddr{
+                    .x = dx,
+                    .y = dy,
+                    .cell = self._get(i),
+                });
+            }
+        }
+    }
 
-    //     return self._list[start_idx..end_idx];
-    // }
-
-    pub fn XYZof(self: CellStore, i: usize) ![3]usize {
+    pub fn xyzOf(self: CellStore, i: usize) !m.Uvec3 {
         _ = self;
-
         const x = i % MAX.x;
         const y = i / MAX.x;
         const z = i / (MAX.x * MAX.y);
@@ -93,7 +108,7 @@ pub const CellStore = struct {
         if (x > MAX.x or y > MAX.y or z > MAX.z) {
             return CellStoreError.InvalidCoordinate;
         }
-        return .{ x, y, z };
+        return .{ .x = x, .y = y, .z = z };
     }
 
     pub fn indexOf(self: CellStore, x: usize, y: usize, z: usize) !usize {
@@ -129,6 +144,36 @@ pub const CellStore = struct {
     }
 };
 
+pub fn relativePos(to: m.Uvec2, x: usize, y: usize) !m.Ivec2 {
+    const px = m.cast(i32, to.x) - m.cast(i32, x);
+    const py = m.cast(i32, to.y) - m.cast(i32, y);
+    return .{ .x = px, .y = py };
+}
+
+pub fn getRectOrigin(center: m.Uvec2, width: usize, height: usize) m.Uvec2 {
+    const x = center.x -| width / 2;
+    const y = center.y -| height / 2;
+    return .{ .x = x, .y = y };
+}
+
+pub fn isMoveBoundsValid(pos: m.Uvec2, direction: m.Direction) bool {
+    const delta = direction.ivec2();
+
+    if ((pos.x == 0 and delta.x < 0) or
+        (pos.y == 0 and delta.y < 0) or
+        (pos.x == MAX.x - 1 and delta.x > 0) or
+        (pos.y == MAX.y - 1 and delta.y > 0))
+    {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+//
+// constants
+//
+
 pub const Tile = union(TileTag) {
     Empty,
     Floor: CellMaterial,
@@ -156,113 +201,3 @@ const TileTag = enum {
     Floor,
     Solid,
 };
-
-pub fn init(world: *m.World) void {
-    initMap(world);
-}
-
-fn initMap(world: *m.World) void {
-    genTerrainNoise(&world.cells) catch std.log.debug("ERR: genTerrainNoise", .{});
-    genRooms(world) catch std.log.debug("ERR: getRooms", .{});
-}
-
-fn genTerrainNoise(cells: *CellStore) !void {
-    const gen = znoise.FnlGenerator{
-        .frequency = 0.12,
-    };
-
-    const k = 0.35;
-
-    for (0..LEN) |i| {
-        const xy = try cells.XYZof(i);
-
-        const noiseX: f32 = @floatFromInt(xy[0]);
-        const noiseY: f32 = @floatFromInt(xy[1]);
-
-        if (gen.noise2(noiseX, noiseY) > k) {
-            const cell = Cell{ .tile = Tile{ .Solid = .Stone } };
-            cells._setInitial(i, cell);
-        } else {
-            const cell = Cell{ .tile = Tile{ .Floor = .Dirt } };
-            cells._setInitial(i, cell);
-        }
-    }
-}
-
-pub fn isMoveBoundsValid(pos: m.Uvec2, direction: m.Direction) bool {
-    const delta = direction.ivec2();
-
-    if ((pos.x == 0 and delta.x < 0) or
-        (pos.y == 0 and delta.y < 0) or
-        (pos.x == MAX.x - 1 and delta.x > 0) or
-        (pos.y == MAX.y - 1 and delta.y > 0))
-    {
-        return false;
-    } else {
-        return true;
-    }
-}
-
-// TODO keep metadata about rooms after build
-// connect rooms with passageways
-// choose a room & location for some things like entry & exit location
-// add treasure, places of interest
-// FIXME handle all Z indexes
-// TEST check off by one errors
-const Room = struct { x: usize, y: usize, width: usize, height: usize };
-
-const ROOM_SIZE = .{ .min = 4, .max = 30 };
-const ROOM_COUNT = .{ .min = 4, .max = 20 };
-
-fn genRooms(world: *m.World) !void {
-    const count = rng.uintLessThanBiased(u16, ROOM_COUNT.max - ROOM_COUNT.min) + ROOM_COUNT.min;
-    const size_range = ROOM_SIZE.max - ROOM_SIZE.min;
-    const z = 0; // FIXME
-
-    var rooms: [ROOM_COUNT.max]Room = undefined;
-
-    for (0..count) |i| {
-        const size = .{
-            .width = rng.uintLessThanBiased(usize, size_range) + ROOM_COUNT.min,
-            .height = rng.uintLessThanBiased(usize, size_range) + ROOM_COUNT.min,
-        };
-
-        // allow for a 1 cell border
-        const origin_max = .{
-            .x = MAX.x - size.width - 2,
-            .y = MAX.y - size.height - 2,
-        };
-
-        // account for room size in placement
-        const origin = m.Uvec2{
-            .x = rng.uintLessThanBiased(usize, origin_max.x) + 1,
-            .y = rng.uintLessThanBiased(usize, origin_max.y) + 1,
-        };
-
-        const room = Room{
-            .x = origin.x,
-            .y = origin.y,
-            .width = size.width,
-            .height = size.height,
-        };
-
-        // excavate rooms
-        for (room.x..room.x + room.width) |x| {
-            for (room.y..room.y + room.height) |y| {
-                const cell = Cell{ .tile = Tile{ .Floor = .Iron } };
-                try world.cells.set(x, y, z, cell);
-            }
-        }
-
-        rooms[i] = room;
-    }
-
-    // TODO
-    // draw corridoors, doors, etc
-    // store room definitions / metadata -> treasure tables, etc
-    // non-rectangular rooms & overlap:
-    //   generate rect. rooms as above
-    //   check for collisions
-    //   randomly union / subtract / reject collisions
-    //   will need to describe rooms in metadata using an array or bitmask ..
-}

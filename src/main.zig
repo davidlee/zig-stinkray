@@ -4,6 +4,7 @@ const gfx = @import("graphics.zig");
 const terrain = @import("terrain.zig");
 const player = @import("player.zig");
 const input = @import("input.zig");
+const wgen = @import("world_gen.zig");
 // const shadowcast = @import("shadowcast.zig");
 
 pub const World = struct {
@@ -12,6 +13,21 @@ pub const World = struct {
     allocator: std.mem.Allocator,
     camera: rl.Camera2D,
     region: std.ArrayList(Uvec2),
+
+    pub fn init(self: *World, alloc: std.mem.Allocator) !void {
+        self.allocator = alloc;
+        self.region = try std.ArrayList(Uvec2).initCapacity(alloc, 1000);
+        self.cells._arraylist = try std.ArrayList(terrain.Cell).initCapacity(alloc, terrain.LEN);
+        player.init(self);
+        wgen.init(self);
+        gfx.init(self);
+    }
+
+    pub fn deinit(self: *World) void {
+        self.cells._arraylist.deinit();
+        self.region.deinit();
+        gfx.deinit();
+    }
 };
 
 pub fn main() anyerror!void {
@@ -22,26 +38,16 @@ pub fn main() anyerror!void {
         _ = gpa.deinit();
     }
 
-    // this allocates memory for the CellStore field too
     const world = try alloc.create(World);
-    world.allocator = alloc;
-    world.region = try std.ArrayList(Uvec2).initCapacity(alloc, 1000);
-    world.cells._arraylist = try std.ArrayList(terrain.Cell).initCapacity(alloc, terrain.LEN);
-
+    try world.init(alloc);
     defer alloc.destroy(world);
 
-    player.init(world);
-    terrain.init(world);
-
-    gfx.init(world);
     startRunLoop(world);
-    gfx.deinit();
 
-    deinit(world); // noop
+    world.deinit();
 }
 
 // Main game loop
-// it's here rather than
 pub fn startRunLoop(world: *World) void {
     while (!rl.windowShouldClose()) {
         tick(world);
@@ -56,11 +62,6 @@ pub fn startRunLoop(world: *World) void {
 pub fn tick(world: *World) void {
     input.handleKeyboard(world);
     input.handleMouse(world) catch std.log.debug("ERR: handleMouse ", .{});
-}
-
-fn deinit(world: *World) void {
-    world.cells._arraylist.deinit();
-    world.region.deinit();
 }
 
 //

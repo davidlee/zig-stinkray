@@ -20,11 +20,6 @@ pub fn handleKeyboard(world: *m.World) void {
                 dir = x[1];
             }
             if (facing_dir_index != 0) {
-                // dear god, the casting sytax is horrible
-                // this is just adjusting the movement direction according to player rotation.
-
-                // const j: usize = @intCast(@rem((@intFromEnum(dir) + @as(isize, @intCast(m.DirectionList.len)) - facing_dir_index), m.DirectionList.len));
-
                 const move_dir_index: isize = @intFromEnum(dir);
                 const arr_len: isize = m.DirectionList.len;
                 const j: usize = @intCast(@rem(move_dir_index + arr_len - facing_dir_index, arr_len));

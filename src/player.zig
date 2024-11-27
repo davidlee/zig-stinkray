@@ -62,7 +62,7 @@ const MoveCommandError = error{
 
 pub fn init(world: *m.World) void {
     world.player = Player{
-        .pos = m.Uvec2{ .x = 50, .y = 50 },
+        .pos = m.Uvec2{ .x = 100, .y = 100 },
         .inventory = .{},
         .z = 0,
     };
