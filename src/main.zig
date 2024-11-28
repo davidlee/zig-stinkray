@@ -13,12 +13,14 @@ pub const World = struct {
     allocator: std.mem.Allocator,
     camera: rl.Camera2D,
     region: std.ArrayList(Uvec2),
+    rectangles: std.ArrayList(URect),
 
     pub fn init(self: *World, alloc: std.mem.Allocator) !void {
         self.allocator = alloc;
-        self.region = try std.ArrayList(Uvec2).initCapacity(alloc, 1000);
-        self.cells._arraylist = try std.ArrayList(terrain.Cell).initCapacity(alloc, terrain.LEN);
+        try self.cells.init(alloc);
         player.init(self);
+        self.region = try std.ArrayList(Uvec2).initCapacity(alloc, 1000);
+        self.rectangles = try std.ArrayList(URect).initCapacity(alloc, 1000);
         wgen.init(self);
         gfx.init(self);
     }
@@ -26,6 +28,7 @@ pub const World = struct {
     pub fn deinit(self: *World) void {
         self.cells._arraylist.deinit();
         self.region.deinit();
+        self.rectangles.deinit();
         gfx.deinit();
     }
 };
@@ -51,9 +54,6 @@ pub fn main() anyerror!void {
 pub fn startRunLoop(world: *World) void {
     while (!rl.windowShouldClose()) {
         tick(world);
-
-        rl.beginDrawing();
-        defer rl.endDrawing();
 
         gfx.draw(world);
     }
@@ -166,3 +166,22 @@ pub const Uvec2 = struct { x: usize, y: usize };
 
 pub const Vec3 = struct { x: f32, y: f32, z: f32 };
 pub const Vec2 = struct { x: f32, y: f32 };
+
+pub const URect = struct {
+    tl: Uvec2, // top left
+    br: Uvec2, // bottom right
+
+    pub fn area(self: URect) usize {
+        return (self.br.x - self.tl.x) * (self.br.y - self.tl.y + 1);
+    }
+
+    // pub fn contains(self: URect, other: URect) bool {
+    //     return self.tl.x <= other.tl.x and self.tl.y <= other.tl.y and self.br.x >= other.br.x and self.br.y >= other.br.y;
+    // }
+
+    pub fn containsPoint(self: URect, point: Uvec2) bool {
+        const tl = self.tl;
+        const br = self.br;
+        return (point.x >= tl.x and point.x < br.x and point.y >= tl.y and point.y < br.y);
+    }
+};

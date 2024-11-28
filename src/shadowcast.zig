@@ -3,6 +3,11 @@ const m = @import("main.zig");
 const t = @import("terrain.zig");
 const p = @import("player.zig");
 
+// https://www.albertford.com/shadowcasting/
+// https://en.wikipedia.org/wiki/Visibility_polygon
+// https://www.redblobgames.com/articles/visibility/
+// https://github.com/CGAL/cgal/blob/master/Visibility_2/include/CGAL/Rotational_sweep_visibility_2.h
+
 const r = std.math.big.Rational;
 
 const Uvec2 = struct { x: usize, y: usize };

@@ -26,7 +26,9 @@ pub fn handleKeyboard(world: *m.World) void {
 
                 dir = m.DirectionList[j];
             }
-            world.player.moveTo(world, dir) catch {};
+            world.player.moveTo(world, dir) catch {
+                std.log.debug("move to {s} {d},{d} failed", .{ @tagName(dir), world.player.pos.x, world.player.pos.y });
+            };
         }
     }
 

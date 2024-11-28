@@ -32,10 +32,10 @@ pub const Player = struct {
     pub fn moveTo(self: Player, world: *m.World, direction: m.Direction) !void {
         const delta = direction.ivec2();
 
-        if (!t.isMoveBoundsValid(self.pos, direction)) {
+        if (!world.cells.isMoveBoundsValid(self.pos, direction)) {
             return MoveCommandError.OutOfBounds;
         }
-
+        defer std.log.debug("move to {d} {d}", .{ self.pos.x, self.pos.y });
         const new_pos = m.Uvec2{
             .x = m.addSignedtoUsize(self.pos.x, delta.x),
             .y = m.addSignedtoUsize(self.pos.y, delta.y),
@@ -62,7 +62,7 @@ const MoveCommandError = error{
 
 pub fn init(world: *m.World) void {
     world.player = Player{
-        .pos = m.Uvec2{ .x = 100, .y = 100 },
+        .pos = m.Uvec2{ .x = 20, .y = 20 },
         .inventory = .{},
         .z = 0,
     };
