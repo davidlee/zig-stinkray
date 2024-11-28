@@ -25,9 +25,9 @@ pub const CellStore = struct {
 
     // this should be considered private; prefer access through methods
     _arraylist: std.ArrayList(Cell),
-    _width: usize,
-    _height: usize,
-    _depth: usize,
+    _width: usize = 0,
+    _height: usize = 0,
+    _depth: usize = 0,
 
     // TODO when I'm feeling smart enough, build a custom iterator
     // to avoid leaking internals directly
@@ -61,21 +61,6 @@ pub const CellStore = struct {
 
     pub fn getSize(self: CellStore) m.Uvec3 {
         return .{ .x = self._width, .y = self._height, .z = self._depth };
-    }
-
-    pub fn loadFromString(self: *CellStore, string: []const u8) !void {
-        const chars = std.mem.split(u8, string, "\n");
-        while (chars.next()) |line| {
-            const cell: Cell = .Empty;
-            switch (line[0]) {
-                '#' => {},
-                '.' => {},
-                else => {
-                    std.log.debug("unknown char {c}", .{line[0]});
-                },
-            }
-            self._arraylist.append(cell);
-        }
     }
 
     fn _get(self: CellStore, i: usize) !Cell {
