@@ -55,4 +55,6 @@ pub fn handleMouse(world: *m.World) !void {
     if (rl.isMouseButtonDown(rl.MouseButton.mouse_button_left)) {
         try world.cells.findBlockingCellsAround(world.player.pos.x, world.player.pos.y, world.player.z, 5, &world.region);
     }
+
+    graphics.wheel = rl.getMouseWheelMove();
 }

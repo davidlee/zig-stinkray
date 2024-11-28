@@ -8,6 +8,7 @@ const CELL_SIZE = 15;
 const MIDPOINT = 8;
 
 var camera: rl.Camera2D = undefined;
+pub var wheel: f32 = 0;
 var screenWidth: i32 = 1800;
 var screenHeight: i32 = 1600;
 
@@ -58,6 +59,9 @@ pub fn cellXYatMouse() m.Uvec2 {
 
 pub fn draw(world: *m.World) void {
     camera.rotation = @as(f32, @floatFromInt(@intFromEnum(world.player.facing))) * 45.0;
+    const scaleFactor = 1.0 + (0.25 * wheel);
+    // if (wheel < 0) scaleFactor = 1.0 / scaleFactor;
+    camera.zoom = std.math.clamp(camera.zoom * scaleFactor, 0.425, 8.0);
 
     rl.beginDrawing();
     defer rl.endDrawing();
