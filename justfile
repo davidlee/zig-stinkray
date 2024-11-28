@@ -10,7 +10,8 @@ build:
     zig build
   
 test: 
-    zig build test 
+    zig test src/tests.zig
 
+# sucks this doesn't work for tests
 watch: 
     zig build --watch
