@@ -35,7 +35,6 @@ pub const Player = struct {
         if (!world.cells.isMoveBoundsValid(self.pos, direction)) {
             return MoveCommandError.OutOfBounds;
         }
-        defer std.log.debug("move to {d} {d}", .{ self.pos.x, self.pos.y });
         const new_pos = m.Uvec2{
             .x = m.addSignedtoUsize(self.pos.x, delta.x),
             .y = m.addSignedtoUsize(self.pos.y, delta.y),

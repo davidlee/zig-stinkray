@@ -5,10 +5,11 @@ const t = @import("terrain.zig");
 const m = @import("main.zig");
 
 const CELL_SIZE = 15;
-const MIDPOINT = 8;
+const CELL_MIDPOINT: i32 = CELL_SIZE / 2;
 
 var camera: rl.Camera2D = undefined;
 pub var wheel: f32 = 0;
+
 var screenWidth: i32 = 1800;
 var screenHeight: i32 = 1600;
 
@@ -21,7 +22,6 @@ var frame_count: usize = 0;
 
 pub fn init(world: *m.World) void {
     _ = world;
-    frame_count +%= 1;
     rl.initWindow(screenWidth, screenHeight, "raylib-zig [core] example - basic window");
     rl.setTargetFPS(60);
     screenWidth = rl.getScreenWidth();
@@ -29,11 +29,9 @@ pub fn init(world: *m.World) void {
     const fw: f32 = @floatFromInt(screenWidth);
     const fh: f32 = @floatFromInt(screenHeight);
 
-    // viewport = rl.loadRenderTexture(m.cast(i32, viewportWidth * CELL_SIZE), m.cast(i32, viewportHeight * CELL_SIZE));
-
     camera = rl.Camera2D{
         .offset = rl.Vector2.init(fw / 2.0, fh / 2.0),
-        .target = rl.Vector2.init(0, 0),
+        .target = rl.Vector2.init(0, 0), // centered on the top left of player tile
         .rotation = 0,
         .zoom = 1,
     };
@@ -58,6 +56,7 @@ pub fn cellXYatMouse() m.Uvec2 {
 }
 
 pub fn draw(world: *m.World) void {
+    frame_count +%= 1;
     camera.rotation = @as(f32, @floatFromInt(@intFromEnum(world.player.facing))) * 45.0;
     const scaleFactor = 1.0 + (0.25 * wheel);
     // if (wheel < 0) scaleFactor = 1.0 / scaleFactor;
@@ -155,22 +154,90 @@ fn drawCells(world: *m.World) !void {
 }
 
 fn drawVisibility(world: *m.World, range: usize) void {
+    const o: f32 = @floatFromInt(CELL_SIZE / 2);
+    const fc: i32 = @intCast(frame_count);
+    const alpha = m.cast(u8, @abs(@rem(fc, 100) - 50) / 1);
     // draw a circle at visible range around the player
-    rl.drawCircleLines(0, 0, @floatFromInt(range * CELL_SIZE), rl.Color.green);
-    rl.drawLine(0, 0, 100, 100, rl.Color.green);
+    rl.drawCircleLines(o, o, @floatFromInt(range * CELL_SIZE), rl.Color.init(0, 255, 0, alpha));
     drawRectangles(world);
 }
 
 fn drawRectangles(world: *m.World) void {
+    const f = frame_count % world.rectangles.items.len;
+    const rect = world.rectangles.items[f];
+    const rel = t.relativePos(world.player.pos, rect.tl.x, rect.tl.y) catch unreachable;
+
+    rl.drawRectangleLines(
+        rel.x * CELL_SIZE,
+        rel.y * CELL_SIZE,
+        m.cast(i32, rect.br.x - rect.tl.x) * CELL_SIZE,
+        m.cast(i32, rect.br.y - rect.tl.y) * CELL_SIZE,
+        rl.Color.init(255, 0, 0, 250),
+    );
+
+    // const near_rects = findRectangleVerticesNear(world, world.player.pos.x, world.player.pos.y, world.player.z, range);
+
+    // find rectangles within range of the player and draw them
+    _ = findWallVerticesNearPlayer(world, 15) catch unreachable;
+}
+const dist = struct { f32, m.Uvec2 };
+
+fn findWallVerticesNearPlayer(world: *m.World, range: usize) !std.ArrayList(m.Uvec2) {
+    var al = std.ArrayList(m.Uvec2).init(world.allocator);
+    const pp = world.player.pos;
+
+    defer al.deinit();
+
     for (world.rectangles.items) |rect| {
-        // std.debug.print("rect {d} {d} {d} {d}\n", .{ rect.tl.x, rect.tl.y, rect.br.x, rect.br.y });
-        const rel = t.relativePos(world.player.pos, rect.tl.x, rect.tl.y) catch unreachable;
-        rl.drawRectangleLines(
-            rel.x * CELL_SIZE,
-            rel.y * CELL_SIZE,
-            m.cast(i32, rect.br.x - rect.tl.x) * CELL_SIZE,
-            m.cast(i32, rect.br.y - rect.tl.y) * CELL_SIZE,
-            rl.Color.init(255, 0, 0, 250),
-        );
+        const vertices = rectVertices(rect);
+
+        var distances = std.ArrayList(dist).initCapacity(world.allocator, vertices.len) catch unreachable;
+        defer distances.deinit();
+
+        for (vertices) |v| {
+            const d = distanceUvec2(pp, v);
+            distances.append(.{ d, v }) catch unreachable;
+        }
+
+        std.mem.sort(dist, distances.items, {}, cmpDist);
+
+        for (distances.items) |d| {
+            if (d[0] < @as(f32, @floatFromInt(range))) {
+                al.append(d[1]) catch unreachable;
+                drawLineFromPlayerToPoint(world, d[1].x, d[1].y);
+            }
+        }
     }
+
+    return al;
+}
+
+fn cmpDist(_: void, a: dist, b: dist) bool {
+    return a[0] < b[0];
+}
+
+fn distanceUvec2(a: m.Uvec2, b: m.Uvec2) f32 {
+    const ax: f32 = @floatFromInt(a.x);
+    const ay: f32 = @floatFromInt(a.y);
+    const bx: f32 = @floatFromInt(b.x);
+    const by: f32 = @floatFromInt(b.y);
+    return std.math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+}
+
+fn rectVertices(rect: m.URect) [4]m.Uvec2 {
+    const tr = m.Uvec2{ .x = rect.br.x, .y = rect.tl.y };
+    const bl = m.Uvec2{ .x = rect.tl.x, .y = rect.br.y };
+    return [4]m.Uvec2{ rect.tl, tr, rect.br, bl };
+}
+
+fn drawLineFromPlayerToPoint(world: *m.World, x: usize, y: usize) void {
+    const rel = t.relativePos(world.player.pos, x, y) catch unreachable;
+
+    const px = m.cast(i32, CELL_MIDPOINT);
+    const py = m.cast(i32, CELL_MIDPOINT);
+
+    const tx = m.cast(i32, rel.x * CELL_SIZE + CELL_MIDPOINT);
+    const ty = m.cast(i32, rel.y * CELL_SIZE + CELL_MIDPOINT);
+
+    rl.drawLine(px, py, tx, ty, rl.Color.init(255, 0, 0, 40));
 }
