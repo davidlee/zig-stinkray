@@ -127,7 +127,6 @@ fn drawCells(world: *m.World) !void {
         const rel_pos = t.relativePos(world.player.pos, it.x, it.y) catch unreachable;
 
         if (rel_pos.x > viewportWidth / 2 or rel_pos.y > viewportHeight / 2) {
-            std.debug.print("skipping {d} {d}\n", .{ rel_pos.x, rel_pos.y });
             continue;
         }
 
@@ -176,7 +175,7 @@ fn drawRectangles(world: *m.World) void {
     );
 
     // find rectangles within range of the player and draw them
-    _ = findWallVerticesNearPlayer(world, 15) catch unreachable;
+    _ = findWallVerticesNearPlayer(world, 12) catch unreachable;
 }
 const dist = struct { f32, m.Uvec2 };
 
@@ -205,7 +204,7 @@ fn findWallVerticesNearPlayer(world: *m.World, range: usize) !std.ArrayList(m.Uv
         if (d[0] < @as(f32, @floatFromInt(range))) {
             al.append(d[1]) catch unreachable;
             std.debug.print("++++ {d} {d}\n", .{ d[1].x, d[1].y });
-            drawLineFromPlayerToPoint(world, d[1].x, d[1].y, 40);
+            drawLineFromPlayerToPoint(world, d[1].x, d[1].y, 150);
         }
     }
 
@@ -232,34 +231,38 @@ fn interestingVertices(rect: m.URect, pp: m.Uvec2) [2]m.Uvec2 {
     const br = rect.br;
     const tr = m.Uvec2{ .x = br.x, .y = tl.y };
     const bl = m.Uvec2{ .x = tl.x, .y = br.y };
+    const top = tl.y;
+    const bot = br.y;
+    const lft = tl.x;
+    const rgt = br.x;
 
-    if (br.y < pp.y) {
-        if (br.x < pp.x) {
+    if (bot < pp.y) { // above player
+        if (rgt < pp.x) {
             // above left
             return [2]m.Uvec2{ tr, bl };
-        } else if (tl.x > pp.x) {
+        } else if (lft > pp.x) {
             // above right
             return [2]m.Uvec2{ tl, br };
         } else {
             // above
             return [2]m.Uvec2{ bl, br };
         }
-    } else if (tl.y > pp.y) {
-        if (br.x > pp.x) {
+    } else if (top > pp.y) { // below player
+        if (lft > pp.x) {
             // below right
             return [2]m.Uvec2{ bl, tr };
-        } else if (br.x < pp.x) {
+        } else if (rgt < pp.x) {
             // below left
             return [2]m.Uvec2{ tl, br };
         } else {
             // below
             return [2]m.Uvec2{ tl, tr };
         }
-    } else {
-        if (br.x < pp.x) {
-            return [2]m.Uvec2{ tr, br };
-        } else {
+    } else { // rect is to one side of the player
+        if (lft > pp.x) { // right of player
             return [2]m.Uvec2{ tl, bl };
+        } else {
+            return [2]m.Uvec2{ tr, br };
         }
     }
 }
@@ -279,5 +282,5 @@ fn drawLineFromPlayerToPoint(world: *m.World, x: usize, y: usize, alpha: u8) voi
     const tx = m.cast(i32, rel.x * CELL_SIZE);
     const ty = m.cast(i32, rel.y * CELL_SIZE);
 
-    rl.drawLine(px, py, tx, ty, rl.Color.init(255, 0, 0, alpha));
+    rl.drawLine(px, py, tx, ty, rl.Color.init(255, 255, 0, alpha));
 }
