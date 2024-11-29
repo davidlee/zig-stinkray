@@ -175,8 +175,6 @@ fn drawRectangles(world: *m.World) void {
         rl.Color.init(255, 0, 0, 250),
     );
 
-    // const near_rects = findRectangleVerticesNear(world, world.player.pos.x, world.player.pos.y, world.player.z, range);
-
     // find rectangles within range of the player and draw them
     _ = findWallVerticesNearPlayer(world, 15) catch unreachable;
 }
@@ -188,26 +186,31 @@ fn findWallVerticesNearPlayer(world: *m.World, range: usize) !std.ArrayList(m.Uv
 
     defer al.deinit();
 
-    for (world.rectangles.items) |rect| {
-        const vertices = rectVertices(rect);
+    var distances = std.ArrayList(dist).initCapacity(world.allocator, 2) catch unreachable;
+    defer distances.deinit();
 
-        var distances = std.ArrayList(dist).initCapacity(world.allocator, vertices.len) catch unreachable;
-        defer distances.deinit();
+    for (world.rectangles.items) |rect| {
+        const vertices = interestingVertices(rect, pp);
 
         for (vertices) |v| {
             const d = distanceUvec2(pp, v);
             distances.append(.{ d, v }) catch unreachable;
         }
+    }
 
-        std.mem.sort(dist, distances.items, {}, cmpDist);
+    std.mem.sort(dist, distances.items, {}, cmpDist);
 
-        for (distances.items) |d| {
-            if (d[0] < @as(f32, @floatFromInt(range))) {
-                al.append(d[1]) catch unreachable;
-                drawLineFromPlayerToPoint(world, d[1].x, d[1].y);
-            }
+    for (distances.items) |d| {
+        std.debug.print("dist {d}\n", .{d[0]});
+        if (d[0] < @as(f32, @floatFromInt(range))) {
+            al.append(d[1]) catch unreachable;
+            std.debug.print("++++ {d} {d}\n", .{ d[1].x, d[1].y });
+            drawLineFromPlayerToPoint(world, d[1].x, d[1].y, 40);
         }
     }
+
+    const d = al.items[frame_count % al.items.len];
+    drawLineFromPlayerToPoint(world, d.x, d.y, 255);
 
     return al;
 }
@@ -224,20 +227,57 @@ fn distanceUvec2(a: m.Uvec2, b: m.Uvec2) f32 {
     return std.math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
 }
 
+fn interestingVertices(rect: m.URect, pp: m.Uvec2) [2]m.Uvec2 {
+    const tl = rect.tl;
+    const br = rect.br;
+    const tr = m.Uvec2{ .x = br.x, .y = tl.y };
+    const bl = m.Uvec2{ .x = tl.x, .y = br.y };
+
+    if (br.y < pp.y) {
+        if (br.x < pp.x) {
+            // above left
+            return [2]m.Uvec2{ tr, bl };
+        } else if (tl.x > pp.x) {
+            // above right
+            return [2]m.Uvec2{ tl, br };
+        } else {
+            // above
+            return [2]m.Uvec2{ bl, br };
+        }
+    } else if (tl.y > pp.y) {
+        if (br.x > pp.x) {
+            // below right
+            return [2]m.Uvec2{ bl, tr };
+        } else if (br.x < pp.x) {
+            // below left
+            return [2]m.Uvec2{ tl, br };
+        } else {
+            // below
+            return [2]m.Uvec2{ tl, tr };
+        }
+    } else {
+        if (br.x < pp.x) {
+            return [2]m.Uvec2{ tr, br };
+        } else {
+            return [2]m.Uvec2{ tl, bl };
+        }
+    }
+}
+
 fn rectVertices(rect: m.URect) [4]m.Uvec2 {
     const tr = m.Uvec2{ .x = rect.br.x, .y = rect.tl.y };
     const bl = m.Uvec2{ .x = rect.tl.x, .y = rect.br.y };
     return [4]m.Uvec2{ rect.tl, tr, rect.br, bl };
 }
 
-fn drawLineFromPlayerToPoint(world: *m.World, x: usize, y: usize) void {
+fn drawLineFromPlayerToPoint(world: *m.World, x: usize, y: usize, alpha: u8) void {
     const rel = t.relativePos(world.player.pos, x, y) catch unreachable;
 
     const px = m.cast(i32, CELL_MIDPOINT);
     const py = m.cast(i32, CELL_MIDPOINT);
 
-    const tx = m.cast(i32, rel.x * CELL_SIZE + CELL_MIDPOINT);
-    const ty = m.cast(i32, rel.y * CELL_SIZE + CELL_MIDPOINT);
+    const tx = m.cast(i32, rel.x * CELL_SIZE);
+    const ty = m.cast(i32, rel.y * CELL_SIZE);
 
-    rl.drawLine(px, py, tx, ty, rl.Color.init(255, 0, 0, 40));
+    rl.drawLine(px, py, tx, ty, rl.Color.init(255, 0, 0, alpha));
 }
