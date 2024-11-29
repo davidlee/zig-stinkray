@@ -176,7 +176,7 @@ pub const CellStore = struct {
         width: usize,
         height: usize,
     ) !void {
-        const max_len = self._arraylist.items.len;
+        // const max_len = self._arraylist.items.len;
         const max = self.getSize();
         try al.ensureTotalCapacity(width * height);
 
@@ -191,27 +191,17 @@ pub const CellStore = struct {
             while (col < width and (x0 + col) < max.x) : (col += 1) {
                 const dx = x0 + col;
                 const i = start_index + vert_index_offset + col;
-                const c = self._get(i) catch null;
-                if (c) |cell| {
-                    al.appendAssumeCapacity(RectAddr{
-                        .x = dx,
-                        .y = dy,
-                        .cell = cell,
-                    });
-                } else {
-                    std.log.debug("** getRect {d} out of bounds for {d}", .{ i, max_len });
-                }
+                const cell = self._get(i) catch unreachable;
+                al.appendAssumeCapacity(RectAddr{
+                    .x = dx,
+                    .y = dy,
+                    .cell = cell,
+                });
             }
         }
+        defer std.log.debug("getRect {d} {d} {d} {d} {d} {d}", .{ x, y, z, width, height, al.items.len });
     }
 };
-
-// only needs to be a function because the casting is a pain in the ass
-pub fn relativePos(to: m.Uvec2, x: usize, y: usize) !m.Ivec2 {
-    const px = m.cast(i32, x) - m.cast(i32, to.x);
-    const py = m.cast(i32, y) - m.cast(i32, to.y);
-    return .{ .x = px, .y = py };
-}
 
 //
 // constants

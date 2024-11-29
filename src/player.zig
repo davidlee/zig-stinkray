@@ -15,8 +15,15 @@ const CommandTag = enum {
     attack,
 };
 
+pub const MovementDirection = enum {
+    Forward,
+    Right,
+    Backward,
+    Left,
+};
+
 const Command = union(enum) {
-    move: m.Direction,
+    move: MovementDirection,
     turn: m.RotationalDirection,
     attack: m.Direction,
 };
@@ -24,34 +31,33 @@ const Command = union(enum) {
 pub const Player = struct {
     health: i32 = 10,
     inventory: struct {} = .{},
-    pos: m.Uvec2,
-    z: usize = 0,
-    facing: m.Direction = .North,
+    // pos: m.Uvec2,
+    position: m.Ivec3 = .{ .x = 0, .y = 0, .z = 0 },
+    // z: usize = 0,
+    // facing: m.Direction = .North,
+    rotation: f32 = 0,
+    speed: f32 = 0,
     // command: ?Command,
 
-    pub fn moveTo(self: Player, world: *m.World, direction: m.Direction) !void {
-        const delta = direction.ivec2();
-
-        if (!world.cells.isMoveBoundsValid(self.pos, direction)) {
-            return MoveCommandError.OutOfBounds;
-        }
-        const new_pos = m.Uvec2{
-            .x = m.addSignedtoUsize(self.pos.x, delta.x),
-            .y = m.addSignedtoUsize(self.pos.y, delta.y),
-        };
-
-        if (world.cells.isPassable(new_pos.x, new_pos.y, self.z) catch false) {
-            world.player.pos = new_pos;
-        } else {
-            return MoveCommandError.ImpassableTerrain;
-        }
+    pub fn ivec2(self: Player) m.Ivec2 {
+        return m.Ivec2{ .x = @as(i32, @intCast(self.position.x)), .y = @as(i32, @intCast(self.position.y)) };
     }
 
-    // pub fn updateVisibility(self: Player, world: *m.World) void {
-    //     _ = world;
-    //     fov.shadowcast(self.pos, 20);
-    // }
+    pub fn uvec2(self: Player) m.Uvec2 {
+        return m.Uvec2{ .x = @as(usize, @intCast(self.position.x)), .y = @as(usize, @intCast(self.position.y)) };
+    }
 
+    pub fn uvec3(self: Player) m.Uvec3 {
+        return m.Uvec3{ .x = @as(usize, @intCast(self.position.x)), .y = @as(usize, @intCast(self.position.y)), .z = @as(usize, @intCast(self.position.z)) };
+    }
+
+    pub fn move(self: *Player, world: *m.World, direction: MovementDirection) !void {
+        _ = world;
+        _ = direction;
+        if (self.position.y >= 1) {
+            self.position.y -|= 1; // FIXME
+        }
+    }
 };
 
 const MoveCommandError = error{
@@ -60,9 +66,9 @@ const MoveCommandError = error{
 };
 
 pub fn init(world: *m.World) void {
+    // FIXME make sure position is valid
     world.player = Player{
-        .pos = m.Uvec2{ .x = 20, .y = 20 },
+        .position = m.Ivec3{ .x = 20, .y = 20, .z = 0 },
         .inventory = .{},
-        .z = 0,
     };
 }

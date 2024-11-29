@@ -10,8 +10,8 @@ const CELL_MIDPOINT: i32 = CELL_SIZE / 2;
 var camera: rl.Camera2D = undefined;
 pub var wheel: f32 = 0;
 
-var screenWidth: i32 = 1800;
-var screenHeight: i32 = 1600;
+pub var screenWidth: i32 = 1800;
+pub var screenHeight: i32 = 1600;
 
 var viewportWidth: usize = 200;
 var viewportHeight: usize = 200;
@@ -41,25 +41,10 @@ pub fn deinit() void {
     defer rl.closeWindow();
 }
 
-// // FIXME - if using a camera, we have to account for its translation
-// // NOTE doesn't check bounds
-// fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
-//     return m.Uvec2{
-//         .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
-//         .y = @as(u16, @intCast(px.y)) / CELL_SIZE,
-//     };
-// }
-
-// pub fn cellXYatMouse() m.Uvec2 {
-//     const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
-//     return pxToCellXY(px);
-// }
-
 pub fn draw(world: *m.World) void {
     frame_count +%= 1;
-    camera.rotation = @as(f32, @floatFromInt(@intFromEnum(world.player.facing))) * 45.0;
+    camera.rotation = -world.player.rotation;
     const scaleFactor = 1.0 + (0.25 * wheel);
-    // if (wheel < 0) scaleFactor = 1.0 / scaleFactor;
     camera.zoom = std.math.clamp(camera.zoom * scaleFactor, 0.425, 8.0);
 
     rl.beginDrawing();
@@ -70,7 +55,7 @@ pub fn draw(world: *m.World) void {
 
     rl.clearBackground(rl.Color.dark_gray);
 
-    drawCells(world) catch std.log.debug("ERR: DrawCells", .{});
+    drawCells(world) catch unreachable;
     drawPlayer(&world.player);
     // drawRegion(world);
 
@@ -100,11 +85,13 @@ fn drawCells(world: *m.World) !void {
     var al = std.ArrayList(t.RectAddr).init(world.allocator);
     defer al.deinit();
 
+    const pos = world.player.uvec3();
+
     try world.cells.getRect(
         &al,
-        world.player.pos.x,
-        world.player.pos.y,
-        world.player.z,
+        pos.x,
+        pos.y,
+        pos.z,
         viewportWidth,
         viewportHeight,
     );
@@ -118,20 +105,20 @@ fn drawCells(world: *m.World) !void {
         ay,
         m.cast(i32, viewportWidth) * cell_size,
         m.cast(i32, viewportHeight) * cell_size,
-        rl.Color.black,
+        rl.Color.dark_gray,
     );
 
     for (al.items) |it| {
         const cell = it.cell;
 
-        const rel_pos = t.relativePos(world.player.pos, it.x, it.y) catch unreachable;
+        const rel_pos = world.player.uvec2().subFrom(it.x, it.y);
 
         if (rel_pos.x > viewportWidth / 2 or rel_pos.y > viewportHeight / 2) {
             continue;
         }
 
-        const display_x: i32 = rel_pos.x * cell_size;
-        const display_y: i32 = rel_pos.y * cell_size;
+        const display_x: i32 = m.cast(i32, rel_pos.x) * cell_size;
+        const display_y: i32 = m.cast(i32, rel_pos.y) * cell_size;
 
         switch (cell.tile) {
             .Empty => rl.drawRectangle(display_x, display_y, CELL_SIZE, CELL_SIZE, rl.Color.dark_gray),
@@ -164,7 +151,7 @@ fn drawVisibility(world: *m.World, range: usize) void {
 fn drawRectangles(world: *m.World) void {
     const f = frame_count % world.rectangles.items.len;
     const rect = world.rectangles.items[f];
-    const rel = t.relativePos(world.player.pos, rect.tl.x, rect.tl.y) catch unreachable;
+    const rel = world.player.ivec2().subFrom(rect.tl.x, rect.tl.y);
 
     rl.drawRectangleLines(
         rel.x * CELL_SIZE,
@@ -180,7 +167,7 @@ fn drawRectangles(world: *m.World) void {
 const distWithPoint = struct { f32, m.Uvec2 };
 
 fn findEdgeVerticesNearPlayer(world: *m.World, range: usize) std.ArrayList(m.Uvec2) {
-    const pp = world.player.pos;
+    const pp = world.player.uvec2();
 
     var al = std.ArrayList(m.Uvec2).init(world.allocator);
     defer al.deinit();
@@ -283,7 +270,8 @@ fn rectVertices(rect: m.URect) [4]m.Uvec2 {
 }
 
 fn drawLineFromPlayerToPoint(world: *m.World, x: usize, y: usize, alpha: u8) void {
-    const rel = t.relativePos(world.player.pos, x, y) catch unreachable;
+    const pp = world.player.uvec2();
+    const rel = pp.subFrom(x, y);
 
     const px = m.cast(i32, CELL_MIDPOINT);
     const py = m.cast(i32, CELL_MIDPOINT);
@@ -304,8 +292,8 @@ fn angleFromPlayerToPoint(world: *m.World, x: usize, y: usize) f32 {
 
 fn playerCellCentreVec2(world: *m.World) m.Vec2 {
     return m.Vec2{
-        .x = m.flint(f32, world.player.pos.x) + 0.5, // center of cell
-        .y = m.flint(f32, world.player.pos.y) + 0.5, // center of cell
+        .x = m.flint(f32, world.player.position.x) + 0.5, // center of cell
+        .y = m.flint(f32, world.player.position.y) + 0.5, // center of cell
     };
 }
 
