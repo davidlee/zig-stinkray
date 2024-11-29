@@ -17,17 +17,16 @@ pub const World = struct {
 
     pub fn init(self: *World, alloc: std.mem.Allocator) !void {
         self.allocator = alloc;
-        try self.cells.init(alloc);
-        player.init(self);
-        self.region = try std.ArrayList(Uvec2).initCapacity(alloc, 1000);
+        self.cells.init(alloc);
+
         self.rectangles = try std.ArrayList(URect).initCapacity(alloc, 1000);
+        player.init(self);
         wgen.init(self);
         gfx.init(self);
     }
 
     pub fn deinit(self: *World) void {
-        self.cells._arraylist.deinit();
-        self.region.deinit();
+        self.cells.deinit();
         self.rectangles.deinit();
         gfx.deinit();
     }
