@@ -69,22 +69,30 @@ pub fn tick(world: *World) void {
 //
 
 // instead of casting usize to isize (risking overflow),
-// cast the signed value to usize. Subtract if necessary.
-//
-// https://ziggit.dev/t/adding-a-signed-integer-to-an-unsigned-integer/5803/3
-//
+// cast the signed value to usize. Subtract if necessary, with bounds safety.
+
 pub fn addSignedtoUsize(u: usize, i: anytype) usize {
     if (i < 0) {
-        return u -| cast(usize, -i); // "saturating subtraction" - bounds safe.
+        return u -| cast(usize, -i);
     } else {
         return u +| cast(usize, i);
     }
 }
 
-// short for @as(usize, @intCast(v));
+// @as(usize, @intCast(v));
 //
 pub inline fn cast(T: type, v: anytype) T {
     return @intCast(v);
+}
+
+// @as(f32, @floatCast(v));
+pub inline fn castf(T: type, v: anytype) T {
+    return @floatCast(v);
+}
+
+// @as(f32, @floatFromInt(i));
+pub inline fn flint(T: type, i: anytype) T {
+    return @as(T, @floatFromInt(i));
 }
 
 //

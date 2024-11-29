@@ -41,19 +41,19 @@ pub fn deinit() void {
     defer rl.closeWindow();
 }
 
-// FIXME - if using a camera, we have to account for its translation
-// NOTE doesn't check bounds
-fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
-    return m.Uvec2{
-        .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
-        .y = @as(u16, @intCast(px.y)) / CELL_SIZE,
-    };
-}
+// // FIXME - if using a camera, we have to account for its translation
+// // NOTE doesn't check bounds
+// fn pxToCellXY(px: m.Ivec2) m.Uvec2 {
+//     return m.Uvec2{
+//         .x = @as(u16, @intCast(px.x)) / CELL_SIZE,
+//         .y = @as(u16, @intCast(px.y)) / CELL_SIZE,
+//     };
+// }
 
-pub fn cellXYatMouse() m.Uvec2 {
-    const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
-    return pxToCellXY(px);
-}
+// pub fn cellXYatMouse() m.Uvec2 {
+//     const px = m.Ivec2{ .x = rl.getMouseX(), .y = rl.getMouseY() };
+//     return pxToCellXY(px);
+// }
 
 pub fn draw(world: *m.World) void {
     frame_count +%= 1;
@@ -175,46 +175,47 @@ fn drawRectangles(world: *m.World) void {
     );
 
     // find rectangles within range of the player and draw them
-    _ = findWallVerticesNearPlayer(world, 12) catch unreachable;
+    _ = findEdgeVerticesNearPlayer(world, 12);
 }
-const dist = struct { f32, m.Uvec2 };
+const distWithPoint = struct { f32, m.Uvec2 };
 
-fn findWallVerticesNearPlayer(world: *m.World, range: usize) !std.ArrayList(m.Uvec2) {
-    var al = std.ArrayList(m.Uvec2).init(world.allocator);
+fn findEdgeVerticesNearPlayer(world: *m.World, range: usize) std.ArrayList(m.Uvec2) {
     const pp = world.player.pos;
 
+    var al = std.ArrayList(m.Uvec2).init(world.allocator);
     defer al.deinit();
 
-    var distances = std.ArrayList(dist).initCapacity(world.allocator, 2) catch unreachable;
+    var distances = std.ArrayList(distWithPoint).init(world.allocator);
     defer distances.deinit();
 
+    // TODO pre-cull, cache, or pre-sort proximate rectangles to avoid
+    // implausible performance on very large maps.
     for (world.rectangles.items) |rect| {
-        const vertices = interestingVertices(rect, pp);
+        const vertices = findRectEdgeVertices(rect, pp);
 
         for (vertices) |v| {
             const d = distanceUvec2(pp, v);
-            distances.append(.{ d, v }) catch unreachable;
+            if (d < m.flint(f32, range)) {
+                distances.append(.{ d, v }) catch unreachable;
+            }
         }
     }
-
-    std.mem.sort(dist, distances.items, {}, cmpDist);
+    std.mem.sort(distWithPoint, distances.items, {}, cmpDist);
 
     for (distances.items) |d| {
-        std.debug.print("dist {d}\n", .{d[0]});
         if (d[0] < @as(f32, @floatFromInt(range))) {
             al.append(d[1]) catch unreachable;
-            std.debug.print("++++ {d} {d}\n", .{ d[1].x, d[1].y });
             drawLineFromPlayerToPoint(world, d[1].x, d[1].y, 150);
+            drawLineThroughPointFromPlayer(world, d[1].x, d[1].y);
         }
     }
 
     const d = al.items[frame_count % al.items.len];
     drawLineFromPlayerToPoint(world, d.x, d.y, 255);
-
     return al;
 }
 
-fn cmpDist(_: void, a: dist, b: dist) bool {
+fn cmpDist(_: void, a: distWithPoint, b: distWithPoint) bool {
     return a[0] < b[0];
 }
 
@@ -226,7 +227,15 @@ fn distanceUvec2(a: m.Uvec2, b: m.Uvec2) f32 {
     return std.math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
 }
 
-fn interestingVertices(rect: m.URect, pp: m.Uvec2) [2]m.Uvec2 {
+// there must be a more concise way to do this,
+// but it has the virtue of being easy enough
+// to understand that I could figure it out myself.
+//
+// non-enclosing rect bounds fall wholly to the NE/SE/SW/NW,
+// or to either side and N/S/E/W.
+// based on this, we can figure out which vertices will mark the
+// edge of the rectangle as seen from the player's position.
+fn findRectEdgeVertices(rect: m.URect, pp: m.Uvec2) [2]m.Uvec2 {
     const tl = rect.tl;
     const br = rect.br;
     const tr = m.Uvec2{ .x = br.x, .y = tl.y };
@@ -283,4 +292,41 @@ fn drawLineFromPlayerToPoint(world: *m.World, x: usize, y: usize, alpha: u8) voi
     const ty = m.cast(i32, rel.y * CELL_SIZE);
 
     rl.drawLine(px, py, tx, ty, rl.Color.init(255, 255, 0, alpha));
+}
+
+fn angleFromPlayerToPoint(world: *m.World, x: usize, y: usize) f32 {
+    const pp = playerCellCentreVec2(world);
+    return std.math.atan2(
+        m.flint(f32, y) - pp.y,
+        m.flint(f32, x) - pp.x,
+    );
+}
+
+fn playerCellCentreVec2(world: *m.World) m.Vec2 {
+    return m.Vec2{
+        .x = m.flint(f32, world.player.pos.x) + 0.5, // center of cell
+        .y = m.flint(f32, world.player.pos.y) + 0.5, // center of cell
+    };
+}
+
+fn findPointAtAngleFromPlayer(world: *m.World, angle: f32, distance: f32) m.Vec2 {
+    const pp = playerCellCentreVec2(world);
+    return m.Vec2{
+        .x = pp.x + std.math.cos(angle) * distance,
+        .y = pp.y + std.math.sin(angle) * distance,
+    };
+}
+
+fn drawLineThroughPointFromPlayer(world: *m.World, x: usize, y: usize) void {
+    const angle: f32 = angleFromPlayerToPoint(world, x, y);
+
+    const px = m.cast(i32, CELL_MIDPOINT);
+    const py = m.cast(i32, CELL_MIDPOINT);
+    rl.drawLine(
+        px,
+        py,
+        px + @as(i32, @intFromFloat(std.math.cos(angle) * 3000)),
+        py + @as(i32, @intFromFloat(std.math.sin(angle) * 3000)),
+        rl.Color.init(255, 255, 40, 40),
+    );
 }
