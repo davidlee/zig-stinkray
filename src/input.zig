@@ -9,24 +9,25 @@ const p = @import("player.zig");
 // https://github.com/Not-Nik/raylib-zig/blob/devel/lib/preludes/raylib-prelude.zig
 
 fn keyPress(key: rl.KeyboardKey) bool {
-    return (rl.isKeyPressed(key) or rl.isKeyPressedRepeat(key));
+    return (rl.isKeyDown(key) or rl.isKeyPressedRepeat(key));
+    // return (rl.isKeyPressed(key) or rl.isKeyPressedRepeat(key));
 }
 
 pub fn handleKeyboard(world: *m.World) void {
     if (keyPress(.key_up)) {
-        world.player.move(world, .Forward) catch void;
+        world.player.move(world, .Forward);
     }
 
     if (keyPress(.key_down)) {
-        world.player.move(world, .Backward) catch void;
+        world.player.move(world, .Backward);
     }
 
     if (keyPress(.key_left)) {
-        world.player.move(world, .Left) catch void;
+        world.player.turn(.Left);
     }
 
     if (keyPress(.key_right)) {
-        world.player.move(world, .Right) catch void;
+        world.player.turn(.Right);
     }
 }
 

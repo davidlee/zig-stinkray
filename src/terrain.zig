@@ -8,9 +8,9 @@ const player = @import("player.zig");
 const m = @import("main.zig");
 const wgen = @import("world_gen.zig");
 
-const WIDTH: usize = 50;
-const HEIGHT: usize = 50;
-const DEPTH: usize = 2;
+const WIDTH: usize = 100;
+const HEIGHT: usize = 100;
+const DEPTH: usize = 1;
 
 pub const CellStoreError = error{
     InvalidCoordinate,
@@ -35,7 +35,7 @@ pub const CellStore = struct {
         self._depth = depth;
         self._arraylist = try std.ArrayList(Cell).initCapacity(
             allocator,
-            self._width * self._height * self._depth,
+            (self._width + 1) * (self._height + 1) * (self._depth + 1), // FIXME shouldn't be necessary
         );
     }
 
@@ -176,7 +176,7 @@ pub const CellStore = struct {
         height: usize,
     ) void {
         const max = self.getSize();
-        al.ensureTotalCapacity(width * height) catch unreachable;
+        al.ensureTotalCapacity(width * height + 1) catch unreachable;
 
         const x0: usize = x -| width / 2;
         const y0: usize = y -| height / 2;
@@ -191,7 +191,12 @@ pub const CellStore = struct {
                 const dx = x0 + col;
                 const i = start_index + vert_index_offset + col;
 
-                const cell = self._get(i) catch unreachable;
+                const cell = self._get(i) catch
+                    {
+                    std.log.debug("getRect: dx,dy {d},{d} -- i {d} out of bounds for {d}", .{ dx, dy, i, self._arraylist.items.len });
+
+                    unreachable;
+                };
                 al.appendAssumeCapacity(RectAddr{
                     .x = dx,
                     .y = dy,

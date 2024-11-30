@@ -114,6 +114,10 @@ pub const Ivec2 = struct {
     pub fn subFrom(self: Ivec2, x: anytype, y: anytype) Ivec2 {
         return Ivec2{ .x = cast(i32, x) - self.x, .y = cast(i32, y) - self.y };
     }
+
+    pub fn uvec2(self: Ivec2) Uvec2 {
+        return Uvec2{ .x = cast(usize, self.x), .y = cast(usize, self.y) };
+    }
 };
 
 pub const Uvec3 = struct { x: usize, y: usize, z: usize };
@@ -154,14 +158,7 @@ pub const Vec3 = struct {
             .y = y,
         };
     }
-    pub fn ivec2(self: Vec3) Ivec2 {
-        const x: i32 = @intFromFloat(@max(0, self.x));
-        const y: i32 = @intFromFloat(@max(0, self.y));
-        return Ivec2{
-            .x = x,
-            .y = y,
-        };
-    }
+
     pub fn ivec3(self: Vec3) Ivec3 {
         return Ivec3{
             .x = @intFromFloat(self.x),
@@ -169,10 +166,25 @@ pub const Vec3 = struct {
             .z = @intFromFloat(self.z),
         };
     }
+
+    pub fn ivec2(self: Vec3) Ivec2 {
+        return Ivec2{
+            .x = @intFromFloat(self.x),
+            .y = @intFromFloat(self.y),
+        };
+    }
 };
 pub const Vec2 = struct {
     x: f32,
     y: f32,
+    pub fn uvec2(self: Vec3) Uvec2 {
+        const x: usize = @intFromFloat(@max(0, self.x));
+        const y: usize = @intFromFloat(@max(0, self.y));
+        return Uvec2{
+            .x = x,
+            .y = y,
+        };
+    }
 };
 
 pub const URect = struct {

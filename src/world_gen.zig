@@ -41,7 +41,8 @@ fn positionPlayer(world: *m.World) void {
 //
 fn genRectObstacles(cells: *t.CellStore) void {
     const max = cells.getSize();
-    for (0..100) |_| {
+    const count: usize = @intFromFloat(std.math.sqrt(m.flint(f32, max.x * max.y)));
+    for (0..count) |_| {
         const w = rng.uintLessThanBiased(usize, 5) + 1;
         const h = rng.uintLessThanBiased(usize, 5) + 1;
         const x = rng.uintLessThanBiased(usize, max.x - w - 1) + 1;
@@ -49,7 +50,7 @@ fn genRectObstacles(cells: *t.CellStore) void {
         for (x..x + w) |wx| {
             for (y..y + h) |wy| {
                 // const i = cells.indexOf(wx, wy, 0) catch continue;
-                cells.set(wx, wy, 0, t.Cell{ .tile = t.Tile{ .Solid = .Stone } }) catch continue;
+                cells.set(wx, wy, 0, t.Cell{ .tile = t.Tile{ .Solid = .Stone } }) catch unreachable;
             }
         }
     }

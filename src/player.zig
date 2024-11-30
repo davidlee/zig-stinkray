@@ -4,7 +4,6 @@ const rng = std.crypto.random;
 const rl = @import("raylib");
 const znoise = @import("znoise");
 
-// const input = @import("input.zig");
 const m = @import("main.zig");
 const t = @import("terrain.zig");
 const fov = @import("shadowcast.zig");
@@ -35,41 +34,37 @@ pub const Player = struct {
     velocity: m.Vec3 = .{ .x = 0, .y = 0, .z = 0 },
     rotation: f32 = 0,
     speed: f32 = 0,
-    // command: ?Command,
 
-    // pub fn ivec2(self: Player) m.Ivec2 {
-    //     return m.Ivec2{ .x = @as(i32, @intFromFloat(self.position.x)), .y = @as(i32, @intFromFloat(self.position.y)) };
-    // }
+    pub fn turn(self: *Player, direction: MovementDirection) void {
+        self.rotation += switch (direction) {
+            .Right => 5,
+            .Left => -5,
+            else => 0,
+        };
+    }
 
-    // pub fn uvec2(self: Player) m.Uvec2 {
-    //     return m.Uvec2{ .x = @as(usize, @intFromFloat(self.position.x)), .y = @as(usize, @intFromFloat(self.position.y)) };
-    // }
-
-    // pub fn uvec3(self: Player) m.Uvec3 {
-    //     return m.Uvec3{ .x = @as(usize, @intFromFloat(self.position.x)), .y = @as(usize, @intFromFloat(self.position.y)), .z = @as(usize, @intFromFloat(self.position.z)) };
-    // }
-
-    pub fn move(self: *Player, world: *m.World, direction: MovementDirection) !void {
+    pub fn move(self: *Player, world: *m.World, direction: MovementDirection) void {
         const a: f32 = switch (direction) {
             .Forward => 0,
             .Right => 90,
             .Backward => 180,
             .Left => 270,
         };
+
         const r = (self.rotation + a - 90) * std.math.pi / 180.0;
         const dist = 0.3;
-        // std.debug.print("move {d} {d}\n", .{ r, a });
-        const new_pos = m.Vec3{
-            .x = self.position.x + @cos(r) * dist,
-            .y = self.position.y + @sin(r) * dist,
-            .z = self.position.z,
-        };
-        // std.debug.print("new_pos {d} {d}\n", .{ new_pos.x, new_pos.y });
+        const max = world.cells.getSize();
+
+        // this causes a panic in math.clamp so we have to do things the long way
+        // const broken: f32 = std.math.clamp(0, 50.249847, 50);
+
+        const x1: f32 = @min(m.flint(f32, max.x), @max(0, self.position.x + @cos(r) * dist));
+        const y1: f32 = @min(m.flint(f32, max.y), @max(0, self.position.y + @sin(r) * dist));
+        const z1: f32 = self.position.z;
+        const new_pos = m.Vec3{ .x = x1, .y = y1, .z = z1 };
 
         if (world.cells.isValidPlayerPosition(new_pos) catch false) {
             self.position = new_pos;
-        } else {
-            // std.log.debug("move to {d},{d} failed", .{ new_pos.x, new_pos.y });
         }
     }
 };
