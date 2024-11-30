@@ -17,6 +17,23 @@ fn initMap(world: *m.World) void {
     zeroMap(&world.cells);
     genRectObstacles(&world.cells);
     identifyBlockingRectangles(world);
+    positionPlayer(world);
+}
+
+fn positionPlayer(world: *m.World) void {
+    const max = world.cells.getSize();
+    while (true) {
+        const x = rng.uintLessThanBiased(usize, max.x - 1);
+        const y = rng.uintLessThanBiased(usize, max.y - 1);
+        if (world.cells.isPassable(x, y, 0) catch false) {
+            world.player.position = m.Vec3{
+                .x = m.flint(f32, x),
+                .y = m.flint(f32, y),
+                .z = 0,
+            };
+            break;
+        }
+    }
 }
 
 // let's intentionally forget everything we know about rooms here
@@ -24,7 +41,8 @@ fn initMap(world: *m.World) void {
 //
 fn genRectObstacles(cells: *t.CellStore) void {
     const max = cells.getSize();
-    for (0..100) |_| {
+    const count: usize = @intFromFloat(std.math.sqrt(m.flint(f32, max.x * max.y)));
+    for (0..count) |_| {
         const w = rng.uintLessThanBiased(usize, 5) + 1;
         const h = rng.uintLessThanBiased(usize, 5) + 1;
         const x = rng.uintLessThanBiased(usize, max.x - w - 1) + 1;
@@ -32,7 +50,7 @@ fn genRectObstacles(cells: *t.CellStore) void {
         for (x..x + w) |wx| {
             for (y..y + h) |wy| {
                 // const i = cells.indexOf(wx, wy, 0) catch continue;
-                cells.set(wx, wy, 0, t.Cell{ .tile = t.Tile{ .Solid = .Stone } }) catch continue;
+                cells.set(wx, wy, 0, t.Cell{ .tile = t.Tile{ .Solid = .Stone } }) catch unreachable;
             }
         }
     }

@@ -8,9 +8,9 @@ const player = @import("player.zig");
 const m = @import("main.zig");
 const wgen = @import("world_gen.zig");
 
-const WIDTH: usize = 50;
-const HEIGHT: usize = 50;
-const DEPTH: usize = 2;
+const WIDTH: usize = 100;
+const HEIGHT: usize = 100;
+const DEPTH: usize = 1;
 
 pub const CellStoreError = error{
     InvalidCoordinate,
@@ -35,7 +35,7 @@ pub const CellStore = struct {
         self._depth = depth;
         self._arraylist = try std.ArrayList(Cell).initCapacity(
             allocator,
-            self._width * self._height * self._depth,
+            (self._width + 1) * (self._height + 1) * (self._depth + 1), // FIXME shouldn't be necessary
         );
     }
 
@@ -149,19 +149,18 @@ pub const CellStore = struct {
         return z * (max.x * max.y) + y * max.x + x;
     }
 
-    pub fn isMoveBoundsValid(self: CellStore, pos: m.Uvec2, direction: m.Direction) bool {
+    pub fn isValidPlayerPosition(self: CellStore, position: m.Vec3) !bool {
+        const pos = position.uvec3();
         const max = self.getSize();
-        const delta = direction.ivec2();
 
-        if ((pos.x == 0 and delta.x < 0) or
-            (pos.y == 0 and delta.y < 0) or
-            (pos.x == max.x and delta.x > 0) or
-            (pos.y == max.y and delta.y > 0))
-        {
-            return false;
-        } else {
-            return true;
+        if (pos.x >= 0 and pos.x <= max.x and pos.y >= 0 and pos.y <= max.y) {
+            if (try self.isPassable(pos.x, pos.y, pos.z)) {
+                return true;
+            } else {
+                return CellStoreError.InvalidCoordinate;
+            }
         }
+        return false;
     }
 
     // get a rectangle of cells at z, centered on x,y
@@ -175,14 +174,14 @@ pub const CellStore = struct {
         z: usize,
         width: usize,
         height: usize,
-    ) !void {
-        const max_len = self._arraylist.items.len;
+    ) void {
         const max = self.getSize();
-        try al.ensureTotalCapacity(width * height);
+        al.ensureTotalCapacity(width * height + 1) catch unreachable;
 
         const x0: usize = x -| width / 2;
         const y0: usize = y -| height / 2;
-        const start_index: usize = try self.indexOf(x0, y0, z);
+
+        const start_index: usize = self.indexOf(x0, y0, z) catch unreachable;
         var row: usize = 0;
         while (row < height and (y0 + row) <= max.y) : (row += 1) {
             const dy = y0 + row;
@@ -191,27 +190,22 @@ pub const CellStore = struct {
             while (col < width and (x0 + col) < max.x) : (col += 1) {
                 const dx = x0 + col;
                 const i = start_index + vert_index_offset + col;
-                const c = self._get(i) catch null;
-                if (c) |cell| {
-                    al.appendAssumeCapacity(RectAddr{
-                        .x = dx,
-                        .y = dy,
-                        .cell = cell,
-                    });
-                } else {
-                    std.log.debug("** getRect {d} out of bounds for {d}", .{ i, max_len });
-                }
+
+                const cell = self._get(i) catch
+                    {
+                    std.log.debug("getRect: dx,dy {d},{d} -- i {d} out of bounds for {d}", .{ dx, dy, i, self._arraylist.items.len });
+
+                    unreachable;
+                };
+                al.appendAssumeCapacity(RectAddr{
+                    .x = dx,
+                    .y = dy,
+                    .cell = cell,
+                });
             }
         }
     }
 };
-
-// only needs to be a function because the casting is a pain in the ass
-pub fn relativePos(to: m.Uvec2, x: usize, y: usize) !m.Ivec2 {
-    const px = m.cast(i32, x) - m.cast(i32, to.x);
-    const py = m.cast(i32, y) - m.cast(i32, to.y);
-    return .{ .x = px, .y = py };
-}
 
 //
 // constants

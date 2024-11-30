@@ -94,85 +94,98 @@ pub inline fn flint(T: type, i: anytype) T {
     return @as(T, @floatFromInt(i));
 }
 
-//
-// Types
-//
-
-// Directions
-
-pub const Direction = enum {
-    North,
-    NorthEast,
-    East,
-    SouthEast,
-    South,
-    SouthWest,
-    West,
-    NorthWest,
-
-    pub fn ivec2(self: Direction) Ivec2 {
-        return Direction_Vectors[@intFromEnum(self)];
-    }
-};
-
-pub const DirectionList = [_]Direction{
-    .North,
-    .NorthEast,
-    .East,
-    .SouthEast,
-    .South,
-    .SouthWest,
-    .West,
-    .NorthWest,
-};
-
-pub const Direction_Vectors = [_]Ivec2{
-    .{ .x = 0, .y = -1 },
-    .{ .x = 1, .y = -1 },
-    .{ .x = 1, .y = 0 },
-    .{ .x = 1, .y = 1 },
-    .{ .x = 0, .y = 1 },
-    .{ .x = -1, .y = 1 },
-    .{ .x = -1, .y = 0 },
-    .{ .x = -1, .y = -1 },
-};
-
-pub const CardinalDirections = [_]Direction{
-    .North,
-    .East,
-    .South,
-    .West,
-};
-
-pub const OrdinalDirections = [_]Direction{
-    .NorthWest,
-    .NorthEast,
-    .SouthEast,
-    .SouthWest,
-};
-
-pub const RotationalDirection = enum {
-    Counterclockwise,
-    None,
-    Clockwise,
-
-    pub fn applyToFacing(self: RotationalDirection, dir: Direction) Direction {
-        const i = (@intFromEnum(dir) + DirectionList.len + @intFromEnum(self) - 1) % DirectionList.len;
-        return DirectionList[i];
-    }
-};
-
 // vectors
 // TODO - is there a library for linear alegebra I should be using ?
 
-pub const Ivec3 = struct { x: i32, y: i32, z: i32 };
-pub const Ivec2 = struct { x: i32, y: i32 };
+pub const Ivec3 = struct {
+    x: i32,
+    y: i32,
+    z: i32,
+};
+
+pub const Ivec2 = struct {
+    x: i32,
+    y: i32,
+
+    pub fn sub(self: Ivec2, other: Ivec2) Ivec2 {
+        return Ivec2{ .x = self.x - other.x, .y = self.y - other.y };
+    }
+
+    pub fn subFrom(self: Ivec2, x: anytype, y: anytype) Ivec2 {
+        return Ivec2{ .x = cast(i32, x) - self.x, .y = cast(i32, y) - self.y };
+    }
+
+    pub fn uvec2(self: Ivec2) Uvec2 {
+        return Uvec2{ .x = cast(usize, self.x), .y = cast(usize, self.y) };
+    }
+};
 
 pub const Uvec3 = struct { x: usize, y: usize, z: usize };
-pub const Uvec2 = struct { x: usize, y: usize };
+pub const Uvec2 = struct {
+    x: usize,
+    y: usize,
+    pub fn sub(self: Uvec2, other: Uvec2) Uvec2 {
+        return Uvec2{ .x = self.x - other.x, .y = self.y - other.y };
+    }
 
-pub const Vec3 = struct { x: f32, y: f32, z: f32 };
-pub const Vec2 = struct { x: f32, y: f32 };
+    pub fn subFrom(self: Uvec2, x: usize, y: usize) Uvec2 {
+        return Uvec2{ .x = x -| self.x, .y = y -| self.y };
+    }
+};
+
+pub const Vec3 = struct {
+    x: f32,
+    y: f32,
+    z: f32,
+
+    pub fn uvec3(self: Vec3) Uvec3 {
+        const x: usize = @intFromFloat(@max(0, self.x));
+        const y: usize = @intFromFloat(@max(0, self.y));
+        const z: usize = @intFromFloat(@max(0, self.z));
+
+        // FIXME prevent overflow / underflow
+        return Uvec3{
+            .x = x,
+            .y = y,
+            .z = z,
+        };
+    }
+    pub fn uvec2(self: Vec3) Uvec2 {
+        const x: usize = @intFromFloat(@max(0, self.x));
+        const y: usize = @intFromFloat(@max(0, self.y));
+        return Uvec2{
+            .x = x,
+            .y = y,
+        };
+    }
+
+    pub fn ivec3(self: Vec3) Ivec3 {
+        return Ivec3{
+            .x = @intFromFloat(self.x),
+            .y = @intFromFloat(self.y),
+            .z = @intFromFloat(self.z),
+        };
+    }
+
+    pub fn ivec2(self: Vec3) Ivec2 {
+        return Ivec2{
+            .x = @intFromFloat(self.x),
+            .y = @intFromFloat(self.y),
+        };
+    }
+};
+pub const Vec2 = struct {
+    x: f32,
+    y: f32,
+    pub fn uvec2(self: Vec3) Uvec2 {
+        const x: usize = @intFromFloat(@max(0, self.x));
+        const y: usize = @intFromFloat(@max(0, self.y));
+        return Uvec2{
+            .x = x,
+            .y = y,
+        };
+    }
+};
 
 pub const URect = struct {
     tl: Uvec2, // top left
@@ -181,10 +194,6 @@ pub const URect = struct {
     pub fn area(self: URect) usize {
         return (self.br.x - self.tl.x) * (self.br.y - self.tl.y + 1);
     }
-
-    // pub fn contains(self: URect, other: URect) bool {
-    //     return self.tl.x <= other.tl.x and self.tl.y <= other.tl.y and self.br.x >= other.br.x and self.br.y >= other.br.y;
-    // }
 
     pub fn containsPoint(self: URect, point: Uvec2) bool {
         const tl = self.tl;

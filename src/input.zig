@@ -8,51 +8,47 @@ const p = @import("player.zig");
 // constants here (TODO LSP autocomplete for them?)
 // https://github.com/Not-Nik/raylib-zig/blob/devel/lib/preludes/raylib-prelude.zig
 
+fn keyPress(key: rl.KeyboardKey) bool {
+    return (rl.isKeyDown(key) or rl.isKeyPressedRepeat(key));
+    // return (rl.isKeyPressed(key) or rl.isKeyPressedRepeat(key));
+}
+
 pub fn handleKeyboard(world: *m.World) void {
-    const facing_dir_index: isize = @intFromEnum(world.player.facing);
-
-    inline for (MovementKeys, 0..) |x, i| {
-        if (rl.isKeyPressed(x[0]) or rl.isKeyPressedRepeat(x[0])) {
-            var dir: m.Direction = undefined;
-            if (rl.isKeyDown(rl.KeyboardKey.key_left_shift)) {
-                dir = m.OrdinalDirections[i];
-            } else {
-                dir = x[1];
-            }
-            if (facing_dir_index != 0) {
-                const move_dir_index: isize = @intFromEnum(dir);
-                const arr_len: isize = m.DirectionList.len;
-                const j: usize = @intCast(@rem(move_dir_index + arr_len - facing_dir_index, arr_len));
-
-                dir = m.DirectionList[j];
-            }
-            world.player.moveTo(world, dir) catch {
-                std.log.debug("move to {s} {d},{d} failed", .{ @tagName(dir), world.player.pos.x, world.player.pos.y });
-            };
-        }
+    if (keyPress(.key_up)) {
+        world.player.move(world, .Forward);
     }
 
-    if (rl.isKeyPressed(.key_one)) {
-        const new_facing = m.RotationalDirection.Counterclockwise.applyToFacing(world.player.facing);
-        world.player.facing = new_facing;
+    if (keyPress(.key_down)) {
+        world.player.move(world, .Backward);
     }
 
-    if (rl.isKeyPressed(.key_two)) {
-        const new_facing = m.RotationalDirection.Clockwise.applyToFacing(world.player.facing);
-        world.player.facing = new_facing;
+    if (keyPress(.key_left)) {
+        world.player.turn(.Left);
+    }
+
+    if (keyPress(.key_right)) {
+        world.player.turn(.Right);
     }
 }
 
 const MovementKeys = .{
-    .{ rl.KeyboardKey.key_up, .North },
-    .{ rl.KeyboardKey.key_right, .East },
-    .{ rl.KeyboardKey.key_down, .South },
-    .{ rl.KeyboardKey.key_left, .West },
+    .{ rl.KeyboardKey.key_up, .Forward },
+    .{ rl.KeyboardKey.key_right, .Right },
+    .{ rl.KeyboardKey.key_down, .Backward },
+    .{ rl.KeyboardKey.key_left, .Left },
 };
 
 pub fn handleMouse(world: *m.World) !void {
-    _ = world;
     if (rl.isMouseButtonDown(rl.MouseButton.mouse_button_left)) {}
+
+    // say mouse x while holding RMB rotates the player
+    // and mouse y changes your speed (creeping, walking, running, sprinting)
+    // endurance is a whole thing
+
+    if (rl.isMouseButtonDown(rl.MouseButton.mouse_button_right)) {
+        const rotation: f32 = m.flint(f32, rl.getMouseX()) / m.flint(f32, graphics.screenWidth) * 360.0;
+        world.player.rotation = rotation;
+    }
 
     graphics.wheel = rl.getMouseWheelMove();
 }
