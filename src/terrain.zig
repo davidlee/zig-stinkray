@@ -149,19 +149,18 @@ pub const CellStore = struct {
         return z * (max.x * max.y) + y * max.x + x;
     }
 
-    pub fn isMoveBoundsValid(self: CellStore, pos: m.Uvec2, direction: m.Direction) bool {
+    pub fn isValidPlayerPosition(self: CellStore, position: m.Vec3) !bool {
+        const pos = position.uvec3();
         const max = self.getSize();
-        const delta = direction.ivec2();
 
-        if ((pos.x == 0 and delta.x < 0) or
-            (pos.y == 0 and delta.y < 0) or
-            (pos.x == max.x and delta.x > 0) or
-            (pos.y == max.y and delta.y > 0))
-        {
-            return false;
-        } else {
-            return true;
+        if (pos.x >= 0 and pos.x <= max.x and pos.y >= 0 and pos.y <= max.y) {
+            if (try self.isPassable(pos.x, pos.y, pos.z)) {
+                return true;
+            } else {
+                return CellStoreError.InvalidCoordinate;
+            }
         }
+        return false;
     }
 
     // get a rectangle of cells at z, centered on x,y
@@ -175,14 +174,14 @@ pub const CellStore = struct {
         z: usize,
         width: usize,
         height: usize,
-    ) !void {
-        // const max_len = self._arraylist.items.len;
+    ) void {
         const max = self.getSize();
-        try al.ensureTotalCapacity(width * height);
+        al.ensureTotalCapacity(width * height) catch unreachable;
 
         const x0: usize = x -| width / 2;
         const y0: usize = y -| height / 2;
-        const start_index: usize = try self.indexOf(x0, y0, z);
+
+        const start_index: usize = self.indexOf(x0, y0, z) catch unreachable;
         var row: usize = 0;
         while (row < height and (y0 + row) <= max.y) : (row += 1) {
             const dy = y0 + row;
@@ -191,6 +190,7 @@ pub const CellStore = struct {
             while (col < width and (x0 + col) < max.x) : (col += 1) {
                 const dx = x0 + col;
                 const i = start_index + vert_index_offset + col;
+
                 const cell = self._get(i) catch unreachable;
                 al.appendAssumeCapacity(RectAddr{
                     .x = dx,
@@ -199,7 +199,6 @@ pub const CellStore = struct {
                 });
             }
         }
-        defer std.log.debug("getRect {d} {d} {d} {d} {d} {d}", .{ x, y, z, width, height, al.items.len });
     }
 };
 

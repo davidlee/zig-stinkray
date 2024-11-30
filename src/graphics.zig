@@ -41,35 +41,39 @@ pub fn deinit() void {
     defer rl.closeWindow();
 }
 
+pub fn playerCoords(position: *m.Vec3) m.Ivec2 {
+    const x: i32 = @intFromFloat(position.x * CELL_SIZE);
+    const y: i32 = @intFromFloat(position.y * CELL_SIZE);
+    return m.Ivec2{ .x = x, .y = y };
+}
+
 pub fn draw(world: *m.World) void {
     frame_count +%= 1;
-    camera.rotation = -world.player.rotation;
     const scaleFactor = 1.0 + (0.25 * wheel);
+    camera.rotation = -world.player.rotation;
     camera.zoom = std.math.clamp(camera.zoom * scaleFactor, 0.425, 8.0);
+    camera.target = rl.Vector2.init(world.player.position.x * CELL_SIZE, world.player.position.y * CELL_SIZE);
 
     rl.beginDrawing();
     defer rl.endDrawing();
 
     // rl.beginTextureMode(viewport);
     rl.beginMode2D(camera);
-
-    rl.clearBackground(rl.Color.dark_gray);
-
-    drawCells(world) catch unreachable;
-    drawPlayer(&world.player);
-    // drawRegion(world);
-
-    drawVisibility(world, 15);
-
+    {
+        rl.clearBackground(rl.Color.dark_gray);
+        drawCells(world) catch unreachable;
+        drawPlayer(&world.player);
+        // drawVisibility(world, 15);
+    }
     rl.endMode2D();
-    rl.endTextureMode();
-
+    // rl.endTextureMode();
     // rl.clearBackground(rl.Color.black);
     //rl.drawTexture(viewport.texture, 0, 0, rl.Color.white);
 }
 
 fn drawPlayer(player: *p.Player) void {
     _ = player;
+    // const coords = playerCoords(&player.position);
     rl.drawRectangle(0, 0, CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
@@ -85,9 +89,8 @@ fn drawCells(world: *m.World) !void {
     var al = std.ArrayList(t.RectAddr).init(world.allocator);
     defer al.deinit();
 
-    const pos = world.player.uvec3();
-
-    try world.cells.getRect(
+    const pos = world.player.position.uvec3();
+    world.cells.getRect(
         &al,
         pos.x,
         pos.y,
@@ -110,8 +113,11 @@ fn drawCells(world: *m.World) !void {
 
     for (al.items) |it| {
         const cell = it.cell;
-
-        const rel_pos = world.player.uvec2().subFrom(it.x, it.y);
+        const player_pos = world.player.position.ivec2();
+        const rel_pos = m.Ivec2{
+            .x = m.cast(i32, it.x) - player_pos.x,
+            .y = m.cast(i32, it.y) - player_pos.y,
+        };
 
         if (rel_pos.x > viewportWidth / 2 or rel_pos.y > viewportHeight / 2) {
             continue;
@@ -151,7 +157,7 @@ fn drawVisibility(world: *m.World, range: usize) void {
 fn drawRectangles(world: *m.World) void {
     const f = frame_count % world.rectangles.items.len;
     const rect = world.rectangles.items[f];
-    const rel = world.player.ivec2().subFrom(rect.tl.x, rect.tl.y);
+    const rel = world.player.position.ivec2().subFrom(rect.tl.x, rect.tl.y);
 
     rl.drawRectangleLines(
         rel.x * CELL_SIZE,
@@ -167,7 +173,7 @@ fn drawRectangles(world: *m.World) void {
 const distWithPoint = struct { f32, m.Uvec2 };
 
 fn findEdgeVerticesNearPlayer(world: *m.World, range: usize) std.ArrayList(m.Uvec2) {
-    const pp = world.player.uvec2();
+    const pp = world.player.position.uvec2();
 
     var al = std.ArrayList(m.Uvec2).init(world.allocator);
     defer al.deinit();
@@ -270,7 +276,7 @@ fn rectVertices(rect: m.URect) [4]m.Uvec2 {
 }
 
 fn drawLineFromPlayerToPoint(world: *m.World, x: usize, y: usize, alpha: u8) void {
-    const pp = world.player.uvec2();
+    const pp = world.player.position.uvec2();
     const rel = pp.subFrom(x, y);
 
     const px = m.cast(i32, CELL_MIDPOINT);
@@ -292,8 +298,8 @@ fn angleFromPlayerToPoint(world: *m.World, x: usize, y: usize) f32 {
 
 fn playerCellCentreVec2(world: *m.World) m.Vec2 {
     return m.Vec2{
-        .x = m.flint(f32, world.player.position.x) + 0.5, // center of cell
-        .y = m.flint(f32, world.player.position.y) + 0.5, // center of cell
+        .x = world.player.position.x + 0.5, // center of cell
+        .y = world.player.position.y + 0.5, // center of cell
     };
 }
 

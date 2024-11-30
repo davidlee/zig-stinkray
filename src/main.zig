@@ -97,7 +97,12 @@ pub inline fn flint(T: type, i: anytype) T {
 // vectors
 // TODO - is there a library for linear alegebra I should be using ?
 
-pub const Ivec3 = struct { x: i32, y: i32, z: i32 };
+pub const Ivec3 = struct {
+    x: i32,
+    y: i32,
+    z: i32,
+};
+
 pub const Ivec2 = struct {
     x: i32,
     y: i32,
@@ -124,7 +129,47 @@ pub const Uvec2 = struct {
     }
 };
 
-pub const Vec3 = struct { x: f32, y: f32, z: f32 };
+pub const Vec3 = struct {
+    x: f32,
+    y: f32,
+    z: f32,
+
+    pub fn uvec3(self: Vec3) Uvec3 {
+        const x: usize = @intFromFloat(@max(0, self.x));
+        const y: usize = @intFromFloat(@max(0, self.y));
+        const z: usize = @intFromFloat(@max(0, self.z));
+
+        // FIXME prevent overflow / underflow
+        return Uvec3{
+            .x = x,
+            .y = y,
+            .z = z,
+        };
+    }
+    pub fn uvec2(self: Vec3) Uvec2 {
+        const x: usize = @intFromFloat(@max(0, self.x));
+        const y: usize = @intFromFloat(@max(0, self.y));
+        return Uvec2{
+            .x = x,
+            .y = y,
+        };
+    }
+    pub fn ivec2(self: Vec3) Ivec2 {
+        const x: i32 = @intFromFloat(@max(0, self.x));
+        const y: i32 = @intFromFloat(@max(0, self.y));
+        return Ivec2{
+            .x = x,
+            .y = y,
+        };
+    }
+    pub fn ivec3(self: Vec3) Ivec3 {
+        return Ivec3{
+            .x = @intFromFloat(self.x),
+            .y = @intFromFloat(self.y),
+            .z = @intFromFloat(self.z),
+        };
+    }
+};
 pub const Vec2 = struct {
     x: f32,
     y: f32,

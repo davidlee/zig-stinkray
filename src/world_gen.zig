@@ -17,6 +17,23 @@ fn initMap(world: *m.World) void {
     zeroMap(&world.cells);
     genRectObstacles(&world.cells);
     identifyBlockingRectangles(world);
+    positionPlayer(world);
+}
+
+fn positionPlayer(world: *m.World) void {
+    const max = world.cells.getSize();
+    while (true) {
+        const x = rng.uintLessThanBiased(usize, max.x - 1);
+        const y = rng.uintLessThanBiased(usize, max.y - 1);
+        if (world.cells.isPassable(x, y, 0) catch false) {
+            world.player.position = m.Vec3{
+                .x = m.flint(f32, x),
+                .y = m.flint(f32, y),
+                .z = 0,
+            };
+            break;
+        }
+    }
 }
 
 // let's intentionally forget everything we know about rooms here

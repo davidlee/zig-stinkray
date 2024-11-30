@@ -8,25 +8,26 @@ const p = @import("player.zig");
 // constants here (TODO LSP autocomplete for them?)
 // https://github.com/Not-Nik/raylib-zig/blob/devel/lib/preludes/raylib-prelude.zig
 
+fn keyPress(key: rl.KeyboardKey) bool {
+    return (rl.isKeyPressed(key) or rl.isKeyPressedRepeat(key));
+}
+
 pub fn handleKeyboard(world: *m.World) void {
-    inline for (MovementKeys) |x| {
-        if (rl.isKeyPressed(x[0]) or rl.isKeyPressedRepeat(x[0])) {
-            const dir = x[1];
-            world.player.move(world, dir) catch {
-                std.log.debug("move to {s} {d},{d} failed", .{ @tagName(dir), world.player.position.x, world.player.position.y });
-            };
-        }
+    if (keyPress(.key_up)) {
+        world.player.move(world, .Forward) catch void;
     }
 
-    // if (rl.isKeyPressed(.key_one)) {
-    //     const new_facing = m.RotationalDirection.Counterclockwise.applyToFacing(world.player.facing);
-    //     world.player.facing = new_facing;
-    // }
+    if (keyPress(.key_down)) {
+        world.player.move(world, .Backward) catch void;
+    }
 
-    // if (rl.isKeyPressed(.key_two)) {
-    //     const new_facing = m.RotationalDirection.Clockwise.applyToFacing(world.player.facing);
-    //     world.player.facing = new_facing;
-    // }
+    if (keyPress(.key_left)) {
+        world.player.move(world, .Left) catch void;
+    }
+
+    if (keyPress(.key_right)) {
+        world.player.move(world, .Right) catch void;
+    }
 }
 
 const MovementKeys = .{
