@@ -72,18 +72,17 @@ pub fn draw(world: *m.World) void {
 }
 
 fn drawPlayer(player: *p.Player) void {
-    _ = player;
-    // const coords = playerCoords(&player.position);
-    rl.drawRectangle(0, 0, CELL_SIZE, CELL_SIZE, rl.Color.red);
+    const coords = playerCoords(&player.position);
+    rl.drawRectangle(coords.x, coords.y, CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
-fn xToRelI32(x: usize) i32 {
-    return (m.cast(i32, x) - m.cast(i32, viewportWidth / 2)) * CELL_SIZE;
-}
+// fn xToRelI32(x: usize) i32 {
+//     return (m.cast(i32, x) - m.cast(i32, viewportWidth / 2)) * CELL_SIZE;
+// }
 
-fn yToRelI32(y: usize) i32 {
-    return (m.cast(i32, y) - m.cast(i32, viewportHeight / 2)) * CELL_SIZE;
-}
+// fn yToRelI32(y: usize) i32 {
+//     return (m.cast(i32, y) - m.cast(i32, viewportHeight / 2)) * CELL_SIZE;
+// }
 
 fn drawCells(world: *m.World) !void {
     var al = std.ArrayList(t.RectAddr).init(world.allocator);
@@ -100,12 +99,10 @@ fn drawCells(world: *m.World) !void {
     );
 
     const cell_size: i32 = CELL_SIZE;
-    const ax = xToRelI32(0);
-    const ay = yToRelI32(0);
 
     rl.drawRectangle(
-        ax,
-        ay,
+        0,
+        0,
         m.cast(i32, viewportWidth) * cell_size,
         m.cast(i32, viewportHeight) * cell_size,
         rl.Color.dark_gray,
@@ -113,18 +110,9 @@ fn drawCells(world: *m.World) !void {
 
     for (al.items) |it| {
         const cell = it.cell;
-        const player_pos = world.player.position.ivec2();
-        const rel_pos = m.Ivec2{
-            .x = m.cast(i32, it.x) - player_pos.x,
-            .y = m.cast(i32, it.y) - player_pos.y,
-        };
 
-        if (rel_pos.x > viewportWidth / 2 or rel_pos.y > viewportHeight / 2) {
-            continue;
-        }
-
-        const display_x: i32 = m.cast(i32, rel_pos.x) * cell_size;
-        const display_y: i32 = m.cast(i32, rel_pos.y) * cell_size;
+        const display_x: i32 = m.cast(i32, it.x) * cell_size;
+        const display_y: i32 = m.cast(i32, it.y) * cell_size;
 
         switch (cell.tile) {
             .Empty => rl.drawRectangle(display_x, display_y, CELL_SIZE, CELL_SIZE, rl.Color.dark_gray),
