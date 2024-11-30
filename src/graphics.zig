@@ -114,8 +114,16 @@ fn drawVisibility(world: *m.World, range: usize) void {
     const pp = playerPxOrigin(&world.player.position);
     const fc: i32 = @intCast(frame_count);
     const alpha = m.cast(u8, @abs(@rem(fc, 100) - 50) / 1);
+    const k: i32 = m.cast(i32, range * CELL_SIZE * 2);
     // draw a circle at visible range around the player
     rl.drawCircleLines(pp.x, pp.y, @floatFromInt(range * CELL_SIZE), rl.Color.init(0, 255, 0, alpha));
+    rl.drawRectangleLines(
+        pp.x - @divFloor(k, 2),
+        pp.y - @divFloor(k, 2),
+        k,
+        k,
+        rl.Color.init(255, 255, 0, alpha),
+    );
     drawRectangles(world);
     // find rectangles within range of the player and draw them
     drawEdgeVerticesNearPlayer(world, range);
@@ -150,6 +158,7 @@ fn drawEdgeVerticesNearPlayer(world: *m.World, range: usize) void {
 // utility functions
 //
 
+// TODO this should find vertices within range as a bounding box, not a radius.
 fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2), range: usize) void {
     var distances = std.ArrayList(distWithPoint).init(world.allocator);
     defer distances.deinit();
@@ -158,6 +167,8 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
 
     // TODO pre-cull, cache, or pre-sort proximate rectangles to avoid
     // implausible performance on very large maps.
+    // look into spatial hashing / spatial indexing.
+
     for (world.rectangles.items) |rect| {
         const vertices = getRectEdgeVertices(rect, pp);
 
@@ -175,7 +186,7 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
             arraylist.append(d[1]) catch unreachable;
             if (true) { // draw debug lines
                 drawLineFromPlayerTo(world, d[1].x, d[1].y, 40);
-                drawLineFromPlayerThrough(world, d[1].x, d[1].y);
+                drawLineFromPlayerThrough(world, d[1].x, d[1].y, m.cast(i32, range));
             }
         }
     }
@@ -189,6 +200,8 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
 // or to either side and N/S/E/W.
 // based on this, we can figure out which vertices will mark the
 // edge, or side, of the rectangle as seen from the player's position.
+
+// TODO return 3 vertices when rect is diagonal to the player.
 
 fn getRectEdgeVertices(rect: m.URect, pp: m.Uvec2) [2]m.Uvec2 {
     const tl = rect.tl;
@@ -240,14 +253,15 @@ fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
     rl.drawLine(ppx.x, ppx.y, pt.x, pt.y, rl.Color.init(255, 255, 0, alpha));
 }
 
-fn drawLineFromPlayerThrough(world: *m.World, x: usize, y: usize) void {
+fn drawLineFromPlayerThrough(world: *m.World, x: usize, y: usize, range: i32) void {
     const angle: f32 = angleFromPlayerTo(world, x, y);
     const ppx = playerPxCentre(&world.player.position);
+
     rl.drawLine(
         ppx.x,
         ppx.y,
-        ppx.x + @as(i32, @intFromFloat(std.math.cos(angle) * 3000)),
-        ppx.y + @as(i32, @intFromFloat(std.math.sin(angle) * 3000)),
+        ppx.x + @as(i32, @as(i32, @intFromFloat(std.math.cos(angle))) * m.cast(i32, range)),
+        ppx.y + @as(i32, @as(i32, @intFromFloat(std.math.sin(angle))) * m.cast(i32, range)),
         rl.Color.init(255, 255, 40, 40),
     );
 }

@@ -28,10 +28,10 @@ pub fn loadFromString(allocator: std.mem.Allocator, string: []const u8) *t.CellS
 
 test "getRect 3x3" {
     const map =
-        "..#..\n" ++ // ..#..       .#.
-        ".###.\n" ++ // .###.  ->   ###
-        "..#..\n"; //   ..#..       .#.
-
+        \\..#..
+        \\.###.
+        \\..#..
+    ;
     const test_allocator = std.testing.allocator_instance.allocator();
     const cells = loadFromString(test_allocator, map);
     defer test_allocator.destroy(cells);
