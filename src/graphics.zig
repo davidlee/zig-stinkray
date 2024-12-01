@@ -256,15 +256,84 @@ fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.W
     const by1 = y - r;
     const by2 = y + r;
 
-    for (world.wall_segments.items) |s| {
-        // std.debug.print("> SEGMENTS :: {d} {d} {d} {d}\n", .{ s.p1.x, s.p1.y, s.p2.x, s.p2.y });
-        if (rectIntersectsPoint(bx1, by1, bx2, by2, s.p1.x, s.p1.y) or
-            rectIntersectsPoint(bx1, by1, bx2, by2, s.p2.x, s.p2.y))
-        {
-            s.p1.angle = angleTo(s.p1.x, s.p1.y, x, y);
-            s.p2.angle = angleTo(s.p2.x, s.p2.y, x, y);
+    var segs: [4]m.WallSegment = undefined;
 
-            array_list.append(s) catch unreachable;
+    var first: m.WallSegment = undefined; // top
+    var intersecting: bool = false;
+    var i: usize = 0;
+
+    for (world.wall_segments.items) |*s| {
+        if (s.p1.top_left) {
+            first = s.*;
+            segs = .{ first, undefined, undefined, undefined };
+            intersecting = false;
+            i = 0;
+        } else {
+            i += 1;
+            segs[i] = s.*;
+        }
+
+        if (!intersecting) {
+            if (rectIntersectsPoint(bx1, by1, bx2, by2, s.p1.x, s.p1.y) or
+                rectIntersectsPoint(bx1, by1, bx2, by2, s.p2.x, s.p2.y))
+            {
+                intersecting = true;
+            }
+        }
+
+        if (intersecting and i == 3) {
+            var walls = std.ArrayList(m.WallSegment).init(world.allocator);
+            defer walls.deinit();
+
+            // determine facing walls based on relative position to player at x,y
+            const tl = segs[0].p1;
+            const br = segs[2].p2;
+
+            const top = segs[0];
+            const right = segs[1];
+            const bottom = segs[2];
+            const left = segs[3];
+
+            const qs: [2]m.Quadrant = .{ m.quadrant(tl.x - x, tl.y - y), m.quadrant(br.x - x, br.y - y) };
+            if (qs[0] == qs[1]) {
+                switch (qs[0]) {
+                    .q_I => {
+                        walls.append(left) catch unreachable;
+                        walls.append(bottom) catch unreachable;
+                    },
+                    .q_II => {
+                        walls.append(bottom) catch unreachable;
+                        walls.append(right) catch unreachable;
+                    },
+                    .q_III => {
+                        walls.append(top) catch unreachable;
+                        walls.append(right) catch unreachable;
+                    },
+                    .q_IV => {
+                        walls.append(top) catch unreachable;
+                        walls.append(left) catch unreachable;
+                    },
+                    .none => unreachable,
+                }
+            } else {
+                if (br.x - x < 0) {
+                    walls.append(right) catch unreachable;
+                } else if (tl.x - x > 0) {
+                    walls.append(left) catch unreachable;
+                } else if (br.y - y < 0) {
+                    walls.append(bottom) catch unreachable;
+                } else if (tl.y - y > 0) {
+                    walls.append(top) catch unreachable;
+                }
+            }
+
+            for (walls.items) |*seg| {
+                seg.p1.angle = angleTo(seg.p1.x, seg.p1.y, x, y);
+                seg.p2.angle = angleTo(seg.p2.x, seg.p2.y, x, y);
+
+                seg.d = (seg.p1.x - x) * (seg.p1.x - x) + (seg.p1.y - y) * (seg.p1.y - y);
+                array_list.append(seg.*) catch unreachable;
+            }
         }
     }
 }
@@ -293,6 +362,55 @@ fn rectIntersectsPoint(x1: f32, y1: f32, x2: f32, y2: f32, px: f32, py: f32) boo
 //
 // utility functions
 //
+
+// https://doc.cgal.org/latest/Visibility_2/index.html
+
+// // Return p*(1-f) + q*f
+// static private function interpolate(p:Point, q:Point, f:Float):Point {
+//     return new Point(p.x*(1-f) + q.x*f, p.y*(1-f) + q.y*f);
+// }
+
+//   // Helper: do we know that segment a is in front of b?
+//     // Implementation not anti-symmetric (that is to say,
+//     // _segment_in_front_of(a, b) != (!_segment_in_front_of(b, a)).
+//     // Also note that it only has to work in a restricted set of cases
+//     // in the visibility algorithm; I don't think it handles all
+//     // cases. See http://www.redblobgames.com/articles/visibility/segment-sorting.html
+//     private function _segment_in_front_of(a:Segment, b:Segment, relativeTo:Point):Bool {
+//         // NOTE: we slightly shorten the segments so that
+//         // intersections of the endpoints (common) don't count as
+//         // intersections in this algorithm
+//         var A1 = leftOf(a, interpolate(b.p1, b.p2, 0.01));
+//         var A2 = leftOf(a, interpolate(b.p2, b.p1, 0.01));
+//         var A3 = leftOf(a, relativeTo);
+//         var B1 = leftOf(b, interpolate(a.p1, a.p2, 0.01));
+//         var B2 = leftOf(b, interpolate(a.p2, a.p1, 0.01));
+//         var B3 = leftOf(b, relativeTo);
+
+//         // NOTE: this algorithm is probably worthy of a short article
+//         // but for now, draw it on paper to see how it works. Consider
+//         // the line A1-A2. If both B1 and B2 are on one side and
+//         // relativeTo is on the other side, then A is in between the
+//         // viewer and B. We can do the same with B1-B2: if A1 and A2
+//         // are on one side, and relativeTo is on the other side, then
+//         // B is in between the viewer and A.
+//         if (B1 == B2 && B2 != B3) return true;
+//         if (A1 == A2 && A2 == A3) return true;
+//         if (A1 == A2 && A2 != A3) return false;
+//         if (B1 == B2 && B2 == B3) return false;
+
+//         // If A1 != A2 and B1 != B2 then we have an intersection.
+//         // Expose it for the GUI to show a message. A more robust
+//         // implementation would split segments at intersections so
+//         // that part of the segment is in front and part is behind.
+//         demo_intersectionsDetected.push([a.p1, a.p2, b.p1, b.p2]);
+//         return false;
+
+//         // NOTE: previous implementation was a.d < b.d. That's simpler
+//         // but trouble when the segments are of dissimilar sizes. If
+//         // you're on a grid and the segments are similarly sized, then
+//         // using distance will be a simpler and faster implementation.
+//     // }
 
 fn getWallsFacing(world: *m.World, rects: *std.ArrayList(m.URect), px: f32, py: f32) void {
     // var walls = std.ArrayList(m.Uvec2).init(world.allocator);
@@ -354,6 +472,41 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
             }
         }
     }
+}
+
+fn getFacingSegments(world: *m.World, segments: [4]m.WallSegment, px: f32, py: f32) [2]?m.WallSegment {
+    _ = world;
+    const tl = segments[0].p1;
+    const br = segments[1].p2;
+
+    const top = segments[0];
+    const bot = segments[2];
+    const rgt = segments[1];
+    const lft = segments[3];
+
+    const q1 = m.quadrant(tl.x - px, tl.y - py);
+    const q2 = m.quadrant(br.x - px, br.y - py);
+
+    if (q1 == q2) { // rect wholly in one quadrant
+        return switch (q1) {
+            .q_I => .{ lft, bot },
+            .q_II => .{ bot, rgt },
+            .q_III => .{ top, rgt },
+            .q_IV => .{ lft, top },
+            .none => unreachable,
+        };
+    } else { // rect spans two quadrants; is in one of the four cardinal directions
+        if (br.x - px < 0) { // left of player
+            return .{ rgt, null };
+        } else if (tl.x - px > 0) { // right of player
+            return .{ lft, null };
+        } else if (br.y - py < 0) { // above player
+            return .{ bot, null };
+        } else if (tl.y - py > 0) { // below player
+            return .{ top, null };
+        }
+    }
+    unreachable;
 }
 
 fn getRectEdgeVertices(world: *m.World, rect: m.URect, px: f32, py: f32) [3]?m.Uvec2 {

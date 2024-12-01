@@ -17,24 +17,6 @@ fn initMap(world: *m.World) void {
     zeroMap(&world.cells);
     genRectObstacles(&world.cells);
     identifyBlockingRectangles(world);
-
-    // Traverse forwards.
-    {
-        var it = world.endpoints.first;
-        // var index: u32 = 1;
-        while (it) |node| : (it = node.next) {
-            std.debug.print("> ENDPOINTS :: {d} {d} \n", .{
-                node.data.x,
-                node.data.y,
-            });
-        }
-    }
-    // for (world.wall_endpoints.items) |e| {
-    //     std.debug.print("> endpoints :: {d} {d} \n", .{
-    //         e.x,
-    //         e.y,
-    //     });
-    // }
     positionPlayer(world);
 }
 
@@ -155,53 +137,33 @@ pub fn identifyBlockingRectangles(world: *m.World) void {
                 const x2 = m.flint(f32, br.x);
                 const y2 = m.flint(f32, br.y);
 
-                addSegment(world, x1, y1, x2, y1);
-                addSegment(world, x2, y1, x2, y2);
-                addSegment(world, x2, y2, x1, y2);
-                addSegment(world, x1, y2, x1, y1);
+                addSegment(world, x1, y1, x2, y1, true);
+                addSegment(world, x2, y1, x2, y2, false);
+                addSegment(world, x2, y2, x1, y2, false);
+                addSegment(world, x1, y2, x1, y1, false);
             }
         }
     }
 }
 
-fn addSegment(world: *m.World, x1: f32, y1: f32, x2: f32, y2: f32) void {
+fn addSegment(world: *m.World, x1: f32, y1: f32, x2: f32, y2: f32, top_left: bool) void {
     var n1 = world.allocator.create(m.EndpointList.Node) catch unreachable;
     var n2 = world.allocator.create(m.EndpointList.Node) catch unreachable;
     n1.data.x = x1;
     n1.data.y = y1;
+    n1.data.top_left = top_left;
     n2.data.x = x2;
     n2.data.y = y2;
+    n2.data.top_left = false;
     world.endpoints.append(n1);
     world.endpoints.append(n2);
 
-    const segment = m.WallSegment{ .p1 = &n1.data, .p2 = &n2.data };
+    const segment = m.WallSegment{
+        .p1 = &n1.data,
+        .p2 = &n2.data,
+    };
     world.wall_segments.append(segment) catch unreachable;
 }
-
-// fn addSegment(world: *m.World, x1: f32, y1: f32, x2: f32, y2: f32) void {
-//     const endpoints = world.wall_endpoints.addManyAsArray(2) catch unreachable;
-//     // var segment = world.wall_segments.addOne() catch unreachable;
-//     var from = endpoints[0];
-//     var to = endpoints[1];
-//     from.x = x1;
-//     from.y = y1;
-//     to.x = x2;
-//     to.y = y2;
-
-//     // var from = m.WallEndpoint{ .x = x1, .y = y1 };
-//     // var to = m.WallEndpoint{ .x = x2, .y = y2 };
-//     var segment = m.WallSegment{ .p1 = &from, .p2 = &to };
-//     segment.p1 = &from;
-//     segment.p2 = &to;
-
-//     // world.wall_endpoints.append(from) catch unreachable;
-//     // world.wall_endpoints.append(to) catch unreachable;
-//     world.wall_segments.append(segment) catch unreachable;
-
-//     // from.segment = segment;
-//     // to.segment = segment;
-//     std.debug.print("> addSegment :: {d} {d} {d} {d}\n", .{ from.x, from.y, to.x, to.y });
-// }
 
 // TODO
 // may need to split these into smaller segments

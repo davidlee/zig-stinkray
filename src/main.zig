@@ -230,7 +230,7 @@ pub const WallEndpoint = struct {
     y: f32,
     angle: f32 = undefined,
     // segment: *WallSegment = undefined,
-    begin: bool = false,
+    top_left: bool = false,
 };
 
 pub const WallSegment = struct {
