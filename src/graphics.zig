@@ -155,8 +155,8 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
 }
 
 fn drawVisibilityDebug(world: *m.World, range: usize) void {
-    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE);
-    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE);
+    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE + CELL_MIDPOINT_F);
+    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE + CELL_MIDPOINT_F);
 
     const fc: i32 = @intCast(frame_count);
     const alpha = m.cast(u8, @abs(@rem(fc, 100) - 50) / 1);
@@ -219,10 +219,12 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
     for (world.rectangles.items) |rect| {
         const vertices = getRectEdgeVertices(world, rect);
 
-        for (vertices) |v| {
-            const d = distanceOfUvec2s(pp, v);
-            if (d < m.flint(f32, range)) {
-                distances.append(.{ d, v }) catch unreachable;
+        for (vertices) |maybe_v| {
+            if (maybe_v) |v| {
+                const d = distanceOfUvec2s(pp, v);
+                if (d < m.flint(f32, range)) {
+                    distances.append(.{ d, v }) catch unreachable;
+                }
             }
         }
     }
@@ -233,13 +235,14 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
             arraylist.append(d[1]) catch unreachable;
             if (true) { // draw debug lines
                 drawLineFromPlayerTo(world, d[1].x, d[1].y, 40);
-                drawLineFromPlayerThrough(world, d[1].x, d[1].y, m.cast(i32, range * 1000), 40);
+
+                drawLineFromPlayerThrough(world, d[1].x, d[1].y, m.cast(i32, range * CELL_SIZE), 40);
             }
         }
     }
 }
 
-fn getRectEdgeVertices(world: *m.World, rect: m.URect) [2]m.Uvec2 {
+fn getRectEdgeVertices(world: *m.World, rect: m.URect) [3]?m.Uvec2 {
     const px = world.player.position.x;
     const py = world.player.position.y;
 
@@ -261,21 +264,21 @@ fn getRectEdgeVertices(world: *m.World, rect: m.URect) [2]m.Uvec2 {
 
     if (q1 == q2) { // rect wholly in one quadrant
         return switch (q1) {
-            .q_I => [2]m.Uvec2{ tl, br },
-            .q_II => [2]m.Uvec2{ tr, bl },
-            .q_III => [2]m.Uvec2{ tl, br },
-            .q_IV => [2]m.Uvec2{ tr, bl },
+            .q_I => .{ tl, bl, br },
+            .q_II => .{ bl, br, tr },
+            .q_III => .{ tl, tr, br },
+            .q_IV => .{ bl, tl, tr },
             .none => unreachable,
         };
     } else { // rect spans two quadrants; is in one of the four cardinal directions
         if (rel_x2 < 0) { // left of player
-            return [2]m.Uvec2{ tr, br };
+            return .{ tr, br, null };
         } else if (rel_x > 0) { // right of player
-            return [2]m.Uvec2{ tl, bl };
+            return .{ tl, bl, null };
         } else if (rel_y2 < 0) { // above player
-            return [2]m.Uvec2{ bl, br };
+            return .{ bl, br, null };
         } else if (rel_y > 0) { // below player
-            return [2]m.Uvec2{ tl, tr };
+            return .{ tl, tr, null };
         }
     }
     unreachable;
@@ -291,17 +294,28 @@ fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
 }
 
 fn drawLineFromPlayerThrough(world: *m.World, x: usize, y: usize, range: i32, alpha: u8) void {
-    const px: f32 = world.player.position.x * CELL_SIZE_F + CELL_MIDPOINT_F;
-    const py: f32 = world.player.position.y * CELL_SIZE_F + CELL_MIDPOINT_F;
+    const px: f32 = (world.player.position.x + 0.5) * CELL_SIZE_F;
+    const py: f32 = (world.player.position.y + 0.5) * CELL_SIZE_F;
+
     const angle: f32 = angleBetweenPoints(px, py, m.flint(f32, x) * CELL_SIZE_F, m.flint(f32, y) * CELL_SIZE_F);
 
-    const tx_f: f32 = px + std.math.cos(angle) * m.flint(f32, range);
-    const ty_f: f32 = py + std.math.sin(angle) * m.flint(f32, range);
+    std.debug.print("angle: {}\n", .{angle});
 
-    const tx: i32 = @intFromFloat(tx_f);
-    const ty: i32 = @intFromFloat(ty_f);
+    const half_pi: f32 = std.math.pi / @as(f32, 2.0);
 
-    rl.drawLine(@intFromFloat(px), @intFromFloat(py), tx, ty, rl.Color.init(0, 255, 255, alpha));
+    const len1: f32 = @abs(m.flint(f32, range) / std.math.sin(half_pi - angle));
+    const len2: f32 = @abs(m.flint(f32, range) / std.math.cos(half_pi - angle));
+    const len = @min(len1, len2);
+    const tx: f32 = px + std.math.cos(angle) * len;
+    const ty: f32 = py + std.math.sin(angle) * len;
+
+    rl.drawLine(
+        @intFromFloat(px),
+        @intFromFloat(py),
+        @intFromFloat(tx),
+        @intFromFloat(ty),
+        rl.Color.init(0, 255, 255, alpha),
+    );
 }
 
 fn angleFromPlayerTo(world: *m.World, x: usize, y: usize) f32 {
