@@ -150,6 +150,24 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
     var output = std.ArrayList(m.Vec2).init(world.allocator);
     defer output.deinit();
 
+    var rects = std.ArrayList(m.URect).init(world.allocator);
+    defer rects.deinit();
+    findRectsIntersectingSquareAround(world, &rects, viewpoint.x, viewpoint.y, range);
+
+    if (rects.items.len > 0) {
+        const rect = rects.items[frame_count % rects.items.len];
+        const alpha: u8 = m.cast(u8, @abs(m.cast(i32, frame_count % 100) - 50));
+        rl.drawRectangle(
+            m.cast(i32, rect.tl.x * CELL_SIZE),
+            m.cast(i32, rect.tl.y * CELL_SIZE),
+            m.cast(i32, (rect.br.x - rect.tl.x) * CELL_SIZE),
+            m.cast(i32, (rect.br.y - rect.tl.y) * CELL_SIZE),
+            rl.Color.init(0, 255, 0, alpha),
+        );
+    }
+    // getWallsFacing(world, &rects, m.flint(f32, r.tl.x), m.flint(f32, r.tl.y));
+    // TODOi
+
     _ = .{ range, output, viewpoint };
     // return output
 }
@@ -170,10 +188,9 @@ fn drawVisibilityDebug(world: *m.World, range: usize) void {
         k,
         rl.Color.init(255, 255, 0, alpha),
     );
-    drawRectangles(world);
-    // find rectangles within range of the player and draw them
+    // drawRectangles(world);
     drawEdgeVerticesNearPlayer(world, range);
-    drawLineFromPlayerTo(world, 0, 0, 255);
+    // drawLineFromPlayerTo(world, 0, 0, 255);
 }
 
 fn drawRectangles(world: *m.World) void {
@@ -187,7 +204,14 @@ fn drawRectangles(world: *m.World) void {
         );
     }
 }
-const distWithPoint = struct { f32, m.Uvec2 };
+const distWithPoint = struct {
+    f32,
+    m.Uvec2,
+};
+
+fn cmpDistWithPoint(_: void, a: distWithPoint, b: distWithPoint) bool {
+    return a[0] < b[0];
+}
 
 fn drawEdgeVerticesNearPlayer(world: *m.World, range: usize) void {
     var al = std.ArrayList(m.Uvec2).init(world.allocator);
@@ -201,34 +225,80 @@ fn drawEdgeVerticesNearPlayer(world: *m.World, range: usize) void {
     }
 }
 
+fn findRectsIntersectingSquareAround(
+    world: *m.World,
+    array_list: *std.ArrayList(m.URect),
+    x: f32,
+    y: f32,
+    range: usize,
+) void {
+    const r: f32 = @floatFromInt(range);
+    for (world.rectangles.items) |rect| {
+        if (rectIntersectsPoint(x - r, y - r, x + r, y + r, m.flint(f32, rect.tl.x), m.flint(f32, rect.tl.y)) or
+            rectIntersectsPoint(x - r, y - r, x + r, y + r, m.flint(f32, rect.br.x), m.flint(f32, rect.br.y)))
+        {
+            array_list.append(rect) catch unreachable;
+        }
+    }
+}
+
+fn rectIntersectsPoint(x1: f32, y1: f32, x2: f32, y2: f32, px: f32, py: f32) bool {
+    return (x1 <= px and x2 >= px and y1 <= py and y2 >= py);
+}
+
 //
 // utility functions
 //
+
+fn getWallsFacing(world: *m.World, rects: *std.ArrayList(m.URect), px: f32, py: f32) void {
+    // var walls = std.ArrayList(m.Uvec2).init(world.allocator);
+    // defer walls.deinit();
+
+    for (rects.items) |rect| {
+        const vertices = getRectEdgeVertices(world, rect, px, py);
+        var last: ?m.Uvec2 = undefined;
+        for (vertices) |maybe_v| {
+            if (maybe_v) |v| {
+                if (last) |l| {
+                    rl.drawLine(
+                        m.cast(i32, l.x * CELL_SIZE),
+                        m.cast(i32, l.y * CELL_SIZE),
+                        m.cast(i32, v.x * CELL_SIZE),
+                        m.cast(i32, v.y * CELL_SIZE),
+                        rl.Color.init(0, 255, 0, 255),
+                    );
+                }
+                // walls.append(v) catch unreachable;
+                last = v;
+            }
+        }
+    }
+}
 
 // TODO this should find vertices within range as a bounding box, not a radius.
 fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2), range: usize) void {
     var distances = std.ArrayList(distWithPoint).init(world.allocator);
     defer distances.deinit();
 
-    const pp = world.player.position.uvec2();
+    // const pp = world.player.position.uvec2();
 
     // TODO pre-cull, cache, or pre-sort proximate rectangles to avoid
     // implausible performance on very large maps.
     // look into spatial hashing / spatial indexing.
 
     for (world.rectangles.items) |rect| {
-        const vertices = getRectEdgeVertices(world, rect);
+        const vertices = getRectEdgeVertices(world, rect, world.player.position.x, world.player.position.y);
 
         for (vertices) |maybe_v| {
             if (maybe_v) |v| {
-                const d = distanceOfUvec2s(pp, v);
+                const d = distanceOfUvec2s(world.player.position.uvec2(), v);
                 if (d < m.flint(f32, range)) {
                     distances.append(.{ d, v }) catch unreachable;
                 }
             }
         }
     }
-    std.mem.sort(distWithPoint, distances.items, {}, cmpDist);
+    std.mem.sort(distWithPoint, distances.items, {}, cmpDistWithPoint);
 
     for (distances.items) |d| {
         if (d[0] < @as(f32, @floatFromInt(range))) {
@@ -236,16 +306,13 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
             if (true) { // draw debug lines
                 drawLineFromPlayerTo(world, d[1].x, d[1].y, 40);
 
-                drawLineFromPlayerThrough(world, d[1].x, d[1].y, m.cast(i32, range * CELL_SIZE), 40);
+                drawLineToBoundingBox(world, d[1].x, d[1].y, m.cast(i32, range * CELL_SIZE), 40);
             }
         }
     }
 }
 
-fn getRectEdgeVertices(world: *m.World, rect: m.URect) [3]?m.Uvec2 {
-    const px = world.player.position.x;
-    const py = world.player.position.y;
-
+fn getRectEdgeVertices(world: *m.World, rect: m.URect, px: f32, py: f32) [3]?m.Uvec2 {
     const tl = rect.tl;
     const br = rect.br;
     const tr = m.Uvec2{ .x = br.x, .y = tl.y };
@@ -281,31 +348,34 @@ fn getRectEdgeVertices(world: *m.World, rect: m.URect) [3]?m.Uvec2 {
             return .{ tl, tr, null };
         }
     }
+    _ = .{world};
     unreachable;
 }
 
 fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
-    const ppx = playerPxCentre(&world.player.position);
+    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE_F + CELL_MIDPOINT_F);
+    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE_F + CELL_MIDPOINT_F);
+
     const pt = m.Ivec2{
         .x = m.cast(i32, x * CELL_SIZE),
         .y = m.cast(i32, y * CELL_SIZE),
     };
-    rl.drawLine(ppx.x, ppx.y, pt.x, pt.y, rl.Color.init(255, 255, 0, alpha));
+    rl.drawLine(px, py, pt.x, pt.y, rl.Color.init(255, 255, 0, alpha));
 }
 
-fn drawLineFromPlayerThrough(world: *m.World, x: usize, y: usize, range: i32, alpha: u8) void {
+const half_pi: f32 = std.math.pi / @as(f32, 2.0);
+
+fn drawLineToBoundingBox(world: *m.World, x: usize, y: usize, range: i32, alpha: u8) void {
     const px: f32 = (world.player.position.x + 0.5) * CELL_SIZE_F;
     const py: f32 = (world.player.position.y + 0.5) * CELL_SIZE_F;
 
     const angle: f32 = angleBetweenPoints(px, py, m.flint(f32, x) * CELL_SIZE_F, m.flint(f32, y) * CELL_SIZE_F);
 
-    std.debug.print("angle: {}\n", .{angle});
-
-    const half_pi: f32 = std.math.pi / @as(f32, 2.0);
-
+    // brutishly finding the distance to the edge of the range rectangle
     const len1: f32 = @abs(m.flint(f32, range) / std.math.sin(half_pi - angle));
     const len2: f32 = @abs(m.flint(f32, range) / std.math.cos(half_pi - angle));
     const len = @min(len1, len2);
+
     const tx: f32 = px + std.math.cos(angle) * len;
     const ty: f32 = py + std.math.sin(angle) * len;
 
@@ -323,6 +393,7 @@ fn angleFromPlayerTo(world: *m.World, x: usize, y: usize) f32 {
     const ty = m.flint(f32, y * CELL_SIZE);
     const px = world.player.position.x * CELL_SIZE_F + CELL_MIDPOINT_F;
     const py = world.player.position.y * CELL_SIZE_F + CELL_MIDPOINT_F;
+
     return std.math.atan2(
         ty - py,
         tx - px,
@@ -331,23 +402,6 @@ fn angleFromPlayerTo(world: *m.World, x: usize, y: usize) f32 {
 
 fn angleBetweenPoints(x1: f32, y1: f32, x2: f32, y2: f32) f32 {
     return std.math.atan2(y2 - y1, x2 - x1);
-}
-
-// WARN this loses precision, don't use for angle calculations.
-// pub fn playerPxOrigin(position: *m.Vec3) m.Ivec2 {
-//     const x: i32 = @intFromFloat(position.x * CELL_SIZE);
-//     const y: i32 = @intFromFloat(position.y * CELL_SIZE);
-//     return m.Ivec2{ .x = x, .y = y };
-// }
-
-pub fn playerPxCentre(position: *m.Vec3) m.Ivec2 {
-    const x: i32 = @intFromFloat(position.x * CELL_SIZE_F + CELL_MIDPOINT_F);
-    const y: i32 = @intFromFloat(position.y * CELL_SIZE_F + CELL_MIDPOINT_F);
-    return m.Ivec2{ .x = x, .y = y };
-}
-
-fn cmpDist(_: void, a: distWithPoint, b: distWithPoint) bool {
-    return a[0] < b[0];
 }
 
 fn distanceOfUvec2s(a: m.Uvec2, b: m.Uvec2) f32 {

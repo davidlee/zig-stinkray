@@ -209,6 +209,8 @@ pub const URect = struct {
 };
 
 //
+// wall / raycasting
+//
 
 const WallEndpoint = struct {
     x: f32,
