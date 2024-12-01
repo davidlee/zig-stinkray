@@ -17,6 +17,24 @@ fn initMap(world: *m.World) void {
     zeroMap(&world.cells);
     genRectObstacles(&world.cells);
     identifyBlockingRectangles(world);
+
+    // Traverse forwards.
+    {
+        var it = world.endpoints.first;
+        // var index: u32 = 1;
+        while (it) |node| : (it = node.next) {
+            std.debug.print("> ENDPOINTS :: {d} {d} \n", .{
+                node.data.x,
+                node.data.y,
+            });
+        }
+    }
+    // for (world.wall_endpoints.items) |e| {
+    //     std.debug.print("> endpoints :: {d} {d} \n", .{
+    //         e.x,
+    //         e.y,
+    //     });
+    // }
     positionPlayer(world);
 }
 
@@ -85,14 +103,14 @@ fn genTerrainNoise(cells: *t.CellStore) !void {
     }
 }
 
-// https://www.drdobbs.com/database/the-maximal-rectangle-problem/184410529
-//
-// we want to to generate a list of all rectangles which are not wholly contained within other rectangles
-
 var rects: std.ArrayList(m.URect) = undefined;
 
+// generate a list of all rectangles which are not wholly contained within other rectangles
 // a mostly dumb, brute force approach - but one I understand
-// tl,br = top left, bottom right
+//
+// see https://www.drdobbs.com/database/the-maximal-rectangle-problem/184410529
+// for more sophisticated approaches
+
 pub fn identifyBlockingRectangles(world: *m.World) void {
     const max = world.cells.getSize();
     for (0..max.y) |y| {
@@ -131,7 +149,60 @@ pub fn identifyBlockingRectangles(world: *m.World) void {
 
                 const rect = m.URect{ .tl = tl, .br = br };
                 world.rectangles.append(rect) catch unreachable;
+
+                const x1 = m.flint(f32, tl.x);
+                const y1 = m.flint(f32, tl.y);
+                const x2 = m.flint(f32, br.x);
+                const y2 = m.flint(f32, br.y);
+
+                addSegment(world, x1, y1, x2, y1);
+                addSegment(world, x2, y1, x2, y2);
+                addSegment(world, x2, y2, x1, y2);
+                addSegment(world, x1, y2, x1, y1);
             }
         }
     }
 }
+
+fn addSegment(world: *m.World, x1: f32, y1: f32, x2: f32, y2: f32) void {
+    var n1 = world.allocator.create(m.EndpointList.Node) catch unreachable;
+    var n2 = world.allocator.create(m.EndpointList.Node) catch unreachable;
+    n1.data.x = x1;
+    n1.data.y = y1;
+    n2.data.x = x2;
+    n2.data.y = y2;
+    world.endpoints.append(n1);
+    world.endpoints.append(n2);
+
+    const segment = m.WallSegment{ .p1 = &n1.data, .p2 = &n2.data };
+    world.wall_segments.append(segment) catch unreachable;
+}
+
+// fn addSegment(world: *m.World, x1: f32, y1: f32, x2: f32, y2: f32) void {
+//     const endpoints = world.wall_endpoints.addManyAsArray(2) catch unreachable;
+//     // var segment = world.wall_segments.addOne() catch unreachable;
+//     var from = endpoints[0];
+//     var to = endpoints[1];
+//     from.x = x1;
+//     from.y = y1;
+//     to.x = x2;
+//     to.y = y2;
+
+//     // var from = m.WallEndpoint{ .x = x1, .y = y1 };
+//     // var to = m.WallEndpoint{ .x = x2, .y = y2 };
+//     var segment = m.WallSegment{ .p1 = &from, .p2 = &to };
+//     segment.p1 = &from;
+//     segment.p2 = &to;
+
+//     // world.wall_endpoints.append(from) catch unreachable;
+//     // world.wall_endpoints.append(to) catch unreachable;
+//     world.wall_segments.append(segment) catch unreachable;
+
+//     // from.segment = segment;
+//     // to.segment = segment;
+//     std.debug.print("> addSegment :: {d} {d} {d} {d}\n", .{ from.x, from.y, to.x, to.y });
+// }
+
+// TODO
+// may need to split these into smaller segments
+fn loadEdgeSegments() void {}

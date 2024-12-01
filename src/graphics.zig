@@ -68,8 +68,8 @@ pub fn draw(world: *m.World) void {
 }
 
 fn drawPlayer(player: *p.Player) void {
-    const x: i32 = @intFromFloat(player.position.x * CELL_SIZE);
-    const y: i32 = @intFromFloat(player.position.y * CELL_SIZE);
+    const x: i32 = @intFromFloat(player.position.x * CELL_SIZE - CELL_MIDPOINT_F);
+    const y: i32 = @intFromFloat(player.position.y * CELL_SIZE - CELL_MIDPOINT_F);
     rl.drawRectangle(x, y, CELL_SIZE, CELL_SIZE, rl.Color.red);
 }
 
@@ -145,7 +145,7 @@ fn drawCell(cell: *const t.Cell, x: usize, y: usize) void {
 
 fn drawVisibilityPolygon(world: *m.World, range: usize) void {
     // FIXME we should track the player's centre in position, not the top left of the tile.
-    const viewpoint: m.Vec2 = .{ .x = world.player.position.x + 0.5, .y = world.player.position.y + 0.5 };
+    const viewpoint: m.Vec2 = .{ .x = world.player.position.x, .y = world.player.position.y };
 
     var output = std.ArrayList(m.Vec2).init(world.allocator);
     defer output.deinit();
@@ -153,6 +153,33 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
     var rects = std.ArrayList(m.URect).init(world.allocator);
     defer rects.deinit();
     findRectsIntersectingSquareAround(world, &rects, viewpoint.x, viewpoint.y, range);
+
+    var segments = std.ArrayList(m.WallSegment).init(world.allocator);
+    defer segments.deinit();
+    findWallSegmentsInBoundingBox(world, &segments, viewpoint.x, viewpoint.y, range);
+
+    // for (rects.items) |rect| {
+    //     const verts = getRectEdgeVertices(world, rect, viewpoint.x, viewpoint.y);
+    //     for (verts) |maybe_v| {
+    //         if (maybe_v) |v| {
+    //             drawLineFromPlayerTo(world, v.x, v.y, 40);
+    //             drawLineToBoundingBox(world, v.x, v.y, m.cast(i32, range * CELL_SIZE), 40);
+    //         }
+    //     }
+    // }
+
+    for (segments.items) |s| {
+        drawLineFromPlayerTo(world, m.intf(usize, s.p1.x), m.intf(usize, s.p1.y), 255);
+        drawLineFromPlayerTo(world, m.intf(usize, s.p2.x), m.intf(usize, s.p2.y), 255);
+        // std.debug.print("SEGMENTS :: {d} {d} {d} {d}\n", .{ s.p1.x, s.p1.y, s.p2.x, s.p2.y });
+        rl.drawLine(
+            m.intf(i32, s.p1.x * CELL_SIZE),
+            m.intf(i32, s.p1.y * CELL_SIZE),
+            m.intf(i32, s.p2.x * CELL_SIZE),
+            m.intf(i32, s.p2.y * CELL_SIZE),
+            rl.Color.init(255, 255, 0, 255),
+        );
+    }
 
     if (rects.items.len > 0) {
         const rect = rects.items[frame_count % rects.items.len];
@@ -173,8 +200,8 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
 }
 
 fn drawVisibilityDebug(world: *m.World, range: usize) void {
-    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE + CELL_MIDPOINT_F);
-    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE + CELL_MIDPOINT_F);
+    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE);
+    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE);
 
     const fc: i32 = @intCast(frame_count);
     const alpha = m.cast(u8, @abs(@rem(fc, 100) - 50) / 1);
@@ -188,9 +215,6 @@ fn drawVisibilityDebug(world: *m.World, range: usize) void {
         k,
         rl.Color.init(255, 255, 0, alpha),
     );
-    // drawRectangles(world);
-    drawEdgeVerticesNearPlayer(world, range);
-    // drawLineFromPlayerTo(world, 0, 0, 255);
 }
 
 fn drawRectangles(world: *m.World) void {
@@ -222,6 +246,26 @@ fn drawEdgeVerticesNearPlayer(world: *m.World, range: usize) void {
     if (al.items.len > 0) {
         const d = al.items[frame_count % al.items.len];
         drawLineFromPlayerTo(world, d.x, d.y, 40);
+    }
+}
+
+fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.WallSegment), x: f32, y: f32, range: usize) void {
+    const r: f32 = @floatFromInt(range);
+    const bx1 = x - r;
+    const bx2 = x + r;
+    const by1 = y - r;
+    const by2 = y + r;
+
+    for (world.wall_segments.items) |s| {
+        // std.debug.print("> SEGMENTS :: {d} {d} {d} {d}\n", .{ s.p1.x, s.p1.y, s.p2.x, s.p2.y });
+        if (rectIntersectsPoint(bx1, by1, bx2, by2, s.p1.x, s.p1.y) or
+            rectIntersectsPoint(bx1, by1, bx2, by2, s.p2.x, s.p2.y))
+        {
+            s.p1.angle = angleTo(s.p1.x, s.p1.y, x, y);
+            s.p2.angle = angleTo(s.p2.x, s.p2.y, x, y);
+
+            array_list.append(s) catch unreachable;
+        }
     }
 }
 
@@ -353,8 +397,8 @@ fn getRectEdgeVertices(world: *m.World, rect: m.URect, px: f32, py: f32) [3]?m.U
 }
 
 fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
-    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE_F + CELL_MIDPOINT_F);
-    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE_F + CELL_MIDPOINT_F);
+    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE_F);
+    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE_F);
 
     const pt = m.Ivec2{
         .x = m.cast(i32, x * CELL_SIZE),
@@ -366,8 +410,8 @@ fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
 const half_pi: f32 = std.math.pi / @as(f32, 2.0);
 
 fn drawLineToBoundingBox(world: *m.World, x: usize, y: usize, range: i32, alpha: u8) void {
-    const px: f32 = (world.player.position.x + 0.5) * CELL_SIZE_F;
-    const py: f32 = (world.player.position.y + 0.5) * CELL_SIZE_F;
+    const px: f32 = (world.player.position.x) * CELL_SIZE_F;
+    const py: f32 = (world.player.position.y) * CELL_SIZE_F;
 
     const angle: f32 = angleBetweenPoints(px, py, m.flint(f32, x) * CELL_SIZE_F, m.flint(f32, y) * CELL_SIZE_F);
 
@@ -389,15 +433,14 @@ fn drawLineToBoundingBox(world: *m.World, x: usize, y: usize, range: i32, alpha:
 }
 
 fn angleFromPlayerTo(world: *m.World, x: usize, y: usize) f32 {
-    const tx = m.flint(f32, x * CELL_SIZE);
-    const ty = m.flint(f32, y * CELL_SIZE);
-    const px = world.player.position.x * CELL_SIZE_F + CELL_MIDPOINT_F;
-    const py = world.player.position.y * CELL_SIZE_F + CELL_MIDPOINT_F;
-
     return std.math.atan2(
-        ty - py,
-        tx - px,
+        m.flint(f32, x) - world.player.position.y,
+        m.flint(f32, y) - world.player.position.x,
     );
+}
+
+fn angleTo(x1: f32, y1: f32, x2: f32, y2: f32) f32 {
+    return std.math.atan2(y2 - y1, x2 - x1);
 }
 
 fn angleBetweenPoints(x1: f32, y1: f32, x2: f32, y2: f32) f32 {

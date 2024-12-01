@@ -15,6 +15,7 @@ pub const World = struct {
     rectangles: std.ArrayList(URect),
     wall_segments: std.ArrayList(WallSegment),
     wall_endpoints: std.ArrayList(WallEndpoint),
+    endpoints: EndpointList,
 
     pub fn init(self: *World, alloc: std.mem.Allocator) void {
         self.allocator = alloc;
@@ -23,6 +24,7 @@ pub const World = struct {
         self.rectangles = std.ArrayList(URect).init(alloc);
         self.wall_segments = std.ArrayList(WallSegment).init(alloc);
         self.wall_endpoints = std.ArrayList(WallEndpoint).init(alloc);
+        self.endpoints = EndpointList{};
 
         player.init(self);
         wgen.init(self);
@@ -34,6 +36,13 @@ pub const World = struct {
         self.rectangles.deinit();
         self.wall_segments.deinit();
         self.wall_endpoints.deinit();
+
+        {
+            var it = self.endpoints.pop();
+            while (it) |node| : (it = self.endpoints.pop()) {
+                self.allocator.destroy(node);
+            }
+        }
         gfx.deinit();
     }
 };
@@ -100,6 +109,10 @@ pub inline fn flint(T: type, i: anytype) T {
     return @as(T, @floatFromInt(i));
 }
 
+// @as(f32, @intFromFloat(f));
+pub inline fn intf(T: type, f: anytype) T {
+    return @as(T, @intFromFloat(f));
+}
 // vectors
 // TODO - is there a library for linear alegebra I should be using ?
 
@@ -212,21 +225,21 @@ pub const URect = struct {
 // wall / raycasting
 //
 
-const WallEndpoint = struct {
+pub const WallEndpoint = struct {
     x: f32,
     y: f32,
-    angle: f32,
-    segment: ?*WallSegment,
+    angle: f32 = undefined,
+    // segment: *WallSegment = undefined,
     begin: bool = false,
 };
 
-const WallSegment = struct {
+pub const WallSegment = struct {
     p1: *WallEndpoint,
     p2: *WallEndpoint,
-    d2: f32, // distance squared, avoiding sqrt as an optimisation
+    d: f32 = undefined, // distance squared, avoiding sqrt as an optimisation
 };
 
-const Quadrant = enum {
+pub const Quadrant = enum {
     none,
     q_I, // top right, +,-
     q_II, // top left, -,-
@@ -234,7 +247,7 @@ const Quadrant = enum {
     q_IV, // bottom right, +,+
 };
 
-const Sign = enum {
+pub const Sign = enum {
     neg,
     zero,
     pos,
@@ -247,12 +260,12 @@ const Sign = enum {
     }
 };
 
-const SignPair = struct {
+pub const SignPair = struct {
     x: Sign,
     y: Sign,
 };
 
-const Quadrant_Sign = [5]SignPair{
+pub const Quadrant_Sign = [5]SignPair{
     .{ .x = .zero, .y = .zero },
     .{ .x = .pos, .y = .neg },
     .{ .x = .neg, .y = .neg },
@@ -283,3 +296,5 @@ pub fn quadrant(x: anytype, y: anytype) Quadrant {
     }
     return .none;
 }
+
+pub const EndpointList = std.DoublyLinkedList(WallEndpoint);
