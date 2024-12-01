@@ -158,16 +158,6 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
     defer segments.deinit();
     findWallSegmentsInBoundingBox(world, &segments, viewpoint.x, viewpoint.y, range);
 
-    // for (rects.items) |rect| {
-    //     const verts = getRectEdgeVertices(world, rect, viewpoint.x, viewpoint.y);
-    //     for (verts) |maybe_v| {
-    //         if (maybe_v) |v| {
-    //             drawLineFromPlayerTo(world, v.x, v.y, 40);
-    //             drawLineToBoundingBox(world, v.x, v.y, m.cast(i32, range * CELL_SIZE), 40);
-    //         }
-    //     }
-    // }
-
     for (segments.items) |s| {
         drawLineFromPlayerTo(world, m.intf(usize, s.p1.x), m.intf(usize, s.p1.y), 255);
         drawLineFromPlayerTo(world, m.intf(usize, s.p2.x), m.intf(usize, s.p2.y), 255);
@@ -180,20 +170,6 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
             rl.Color.init(255, 255, 0, 255),
         );
     }
-
-    if (rects.items.len > 0) {
-        const rect = rects.items[frame_count % rects.items.len];
-        const alpha: u8 = m.cast(u8, @abs(m.cast(i32, frame_count % 100) - 50));
-        rl.drawRectangle(
-            m.cast(i32, rect.tl.x * CELL_SIZE),
-            m.cast(i32, rect.tl.y * CELL_SIZE),
-            m.cast(i32, (rect.br.x - rect.tl.x) * CELL_SIZE),
-            m.cast(i32, (rect.br.y - rect.tl.y) * CELL_SIZE),
-            rl.Color.init(0, 255, 0, alpha),
-        );
-    }
-    // getWallsFacing(world, &rects, m.flint(f32, r.tl.x), m.flint(f32, r.tl.y));
-    // TODOi
 
     _ = .{ range, output, viewpoint };
     // return output
