@@ -12,14 +12,18 @@ pub const World = struct {
     player: player.Player,
     allocator: std.mem.Allocator,
     camera: rl.Camera2D,
-    region: std.ArrayList(Uvec2),
     rectangles: std.ArrayList(URect),
+    wall_segments: std.ArrayList(WallSegment),
+    wall_endpoints: std.ArrayList(WallEndpoint),
 
-    pub fn init(self: *World, alloc: std.mem.Allocator) !void {
+    pub fn init(self: *World, alloc: std.mem.Allocator) void {
         self.allocator = alloc;
         self.cells.init(alloc);
 
-        self.rectangles = try std.ArrayList(URect).initCapacity(alloc, 1000);
+        self.rectangles = std.ArrayList(URect).init(alloc);
+        self.wall_segments = std.ArrayList(WallSegment).init(alloc);
+        self.wall_endpoints = std.ArrayList(WallEndpoint).init(alloc);
+
         player.init(self);
         wgen.init(self);
         gfx.init(self);
@@ -28,6 +32,8 @@ pub const World = struct {
     pub fn deinit(self: *World) void {
         self.cells.deinit();
         self.rectangles.deinit();
+        self.wall_segments.deinit();
+        self.wall_endpoints.deinit();
         gfx.deinit();
     }
 };
@@ -41,7 +47,7 @@ pub fn main() anyerror!void {
     }
 
     const world = try alloc.create(World);
-    try world.init(alloc);
+    world.init(alloc);
     defer alloc.destroy(world);
 
     startRunLoop(world);
@@ -201,3 +207,77 @@ pub const URect = struct {
         return (point.x >= tl.x and point.x < br.x and point.y >= tl.y and point.y < br.y);
     }
 };
+
+//
+
+const WallEndpoint = struct {
+    x: f32,
+    y: f32,
+    angle: f32,
+    segment: ?*WallSegment,
+    begin: bool = false,
+};
+
+const WallSegment = struct {
+    p1: *WallEndpoint,
+    p2: *WallEndpoint,
+    d2: f32, // distance squared, avoiding sqrt as an optimisation
+};
+
+const Quadrant = enum {
+    none,
+    q_I, // top right, +,-
+    q_II, // top left, -,-
+    q_III, // bottom left, -,+
+    q_IV, // bottom right, +,+
+};
+
+const Sign = enum {
+    neg,
+    zero,
+    pos,
+    pub fn mult(self: Sign, T: type, x: anytype) T {
+        return switch (self) {
+            .neg => -x,
+            .zero => 0,
+            .pos => x,
+        };
+    }
+};
+
+const SignPair = struct {
+    x: Sign,
+    y: Sign,
+};
+
+const Quadrant_Sign = [5]SignPair{
+    .{ .x = .zero, .y = .zero },
+    .{ .x = .pos, .y = .neg },
+    .{ .x = .neg, .y = .neg },
+    .{ .x = .neg, .y = .pos },
+    .{ .x = .pos, .y = .pos },
+};
+
+// II | I
+// ---+---
+// III| IV
+pub fn quadrant(x: anytype, y: anytype) Quadrant {
+    if (x > 0) { // right
+        if (y < 0) { // above
+            return .q_I;
+        } else { // below
+            return .q_IV;
+        }
+    } else if (x < 0) { // left
+        if (y < 0) { // above
+            return .q_II;
+        } else { // below
+            return .q_III;
+        }
+    } else if (y < 0) { // above
+        return .q_I;
+    } else if (y > 0) { // below
+        return .q_IV;
+    }
+    return .none;
+}
