@@ -186,7 +186,7 @@ fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2
             arraylist.append(d[1]) catch unreachable;
             if (true) { // draw debug lines
                 drawLineFromPlayerTo(world, d[1].x, d[1].y, 40);
-                drawLineFromPlayerThrough(world, d[1].x, d[1].y, m.cast(i32, range));
+                drawLineFromPlayerThrough(world, d[1].x, d[1].y, m.cast(i32, range * 1000), 40);
             }
         }
     }
@@ -253,17 +253,18 @@ fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
     rl.drawLine(ppx.x, ppx.y, pt.x, pt.y, rl.Color.init(255, 255, 0, alpha));
 }
 
-fn drawLineFromPlayerThrough(world: *m.World, x: usize, y: usize, range: i32) void {
-    const angle: f32 = angleFromPlayerTo(world, x, y);
-    const ppx = playerPxCentre(&world.player.position);
+fn drawLineFromPlayerThrough(world: *m.World, x: usize, y: usize, range: i32, alpha: u8) void {
+    const px: f32 = world.player.position.x * CELL_SIZE_F + CELL_MIDPOINT_F;
+    const py: f32 = world.player.position.y * CELL_SIZE_F + CELL_MIDPOINT_F;
+    const angle: f32 = angleBetweenPoints(px, py, m.flint(f32, x) * CELL_SIZE_F, m.flint(f32, y) * CELL_SIZE_F);
 
-    rl.drawLine(
-        ppx.x,
-        ppx.y,
-        ppx.x + @as(i32, @as(i32, @intFromFloat(std.math.cos(angle))) * m.cast(i32, range)),
-        ppx.y + @as(i32, @as(i32, @intFromFloat(std.math.sin(angle))) * m.cast(i32, range)),
-        rl.Color.init(255, 255, 40, 40),
-    );
+    const tx_f: f32 = px + std.math.cos(angle) * m.flint(f32, range);
+    const ty_f: f32 = py + std.math.sin(angle) * m.flint(f32, range);
+
+    const tx: i32 = @intFromFloat(tx_f);
+    const ty: i32 = @intFromFloat(ty_f);
+
+    rl.drawLine(@intFromFloat(px), @intFromFloat(py), tx, ty, rl.Color.init(0, 255, 255, alpha));
 }
 
 fn angleFromPlayerTo(world: *m.World, x: usize, y: usize) f32 {
@@ -277,6 +278,11 @@ fn angleFromPlayerTo(world: *m.World, x: usize, y: usize) f32 {
     );
 }
 
+fn angleBetweenPoints(x1: f32, y1: f32, x2: f32, y2: f32) f32 {
+    return std.math.atan2(y2 - y1, x2 - x1);
+}
+
+// WARN this loses precision, don't use for angle calculations.
 pub fn playerPxOrigin(position: *m.Vec3) m.Ivec2 {
     const x: i32 = @intFromFloat(position.x * CELL_SIZE);
     const y: i32 = @intFromFloat(position.y * CELL_SIZE);

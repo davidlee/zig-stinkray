@@ -14,7 +14,7 @@ fn keyPress(key: rl.KeyboardKey) bool {
 }
 
 pub fn handleKeyboard(world: *m.World) void {
-    if (keyPress(.key_up)) {
+    if (keyPress(.key_up) or keyPress(.key_l)) {
         world.player.move(world, .Forward);
     }
 
@@ -45,7 +45,11 @@ pub fn handleMouse(world: *m.World) !void {
     // and mouse y changes your speed (creeping, walking, running, sprinting)
     // endurance is a whole thing
 
-    if (rl.isMouseButtonDown(rl.MouseButton.mouse_button_right)) {
+    if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_right)) {
+        world.player.mouse_look_mode = !world.player.mouse_look_mode;
+    }
+
+    if (world.player.mouse_look_mode) {
         const rotation: f32 = m.flint(f32, rl.getMouseX()) / m.flint(f32, graphics.screenWidth) * 360.0;
         world.player.rotation = rotation;
     }

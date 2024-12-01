@@ -34,6 +34,7 @@ pub const Player = struct {
     velocity: m.Vec3 = .{ .x = 0, .y = 0, .z = 0 },
     rotation: f32 = 0,
     speed: f32 = 0,
+    mouse_look_mode: bool = false,
 
     pub fn turn(self: *Player, direction: MovementDirection) void {
         self.rotation += switch (direction) {
