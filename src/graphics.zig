@@ -144,7 +144,6 @@ fn drawCell(cell: *const t.Cell, x: usize, y: usize) void {
 // public var open:DLL<Segment>;
 
 fn drawVisibilityPolygon(world: *m.World, range: usize) void {
-    // FIXME we should track the player's centre in position, not the top left of the tile.
     const viewpoint: m.Vec2 = .{ .x = world.player.position.x, .y = world.player.position.y };
 
     var output = std.ArrayList(m.Vec2).init(world.allocator);
@@ -161,7 +160,6 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
     for (segments.items) |s| {
         drawLineFromPlayerTo(world, m.intf(usize, s.p1.x), m.intf(usize, s.p1.y), 255);
         drawLineFromPlayerTo(world, m.intf(usize, s.p2.x), m.intf(usize, s.p2.y), 255);
-        // std.debug.print("SEGMENTS :: {d} {d} {d} {d}\n", .{ s.p1.x, s.p1.y, s.p2.x, s.p2.y });
         rl.drawLine(
             m.intf(i32, s.p1.x * CELL_SIZE),
             m.intf(i32, s.p1.y * CELL_SIZE),
@@ -172,7 +170,6 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
     }
 
     _ = .{ range, output, viewpoint };
-    // return output
 }
 
 fn drawVisibilityDebug(world: *m.World, range: usize) void {
@@ -192,39 +189,6 @@ fn drawVisibilityDebug(world: *m.World, range: usize) void {
         rl.Color.init(255, 255, 0, alpha),
     );
 }
-
-// fn drawRectangles(world: *m.World) void {
-//     for (world.rectangles.items) |r| {
-//         rl.drawRectangleLines(
-//             m.cast(i32, r.tl.x * CELL_SIZE),
-//             m.cast(i32, r.tl.y * CELL_SIZE),
-//             m.cast(i32, (r.br.x - r.tl.x) * CELL_SIZE),
-//             m.cast(i32, (r.br.y - r.tl.y) * CELL_SIZE),
-//             rl.Color.init(0, 255, 0, m.cast(u8, frame_count % 100)),
-//         );
-//     }
-// }
-
-// const distWithPoint = struct {
-//     f32,
-//     m.Uvec2,
-// };
-
-// fn cmpDistWithPoint(_: void, a: distWithPoint, b: distWithPoint) bool {
-//     return a[0] < b[0];
-// }
-
-// fn drawEdgeVerticesNearPlayer(world: *m.World, range: usize) void {
-//     var al = std.ArrayList(m.Uvec2).init(world.allocator);
-//     defer al.deinit();
-
-//     findEdgeVerticesNearPlayer(world, &al, range);
-
-//     if (al.items.len > 0) {
-//         const d = al.items[frame_count % al.items.len];
-//         drawLineFromPlayerTo(world, d.x, d.y, 40);
-//     }
-// }
 
 fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.WallSegment), x: f32, y: f32, range: usize) void {
     const r: f32 = @floatFromInt(range);
@@ -262,47 +226,7 @@ fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.W
             var walls = std.ArrayList(m.WallSegment).init(world.allocator);
             defer walls.deinit();
 
-            // determine facing walls based on relative position to player at x,y
-            const tl = segs[0].p1;
-            const br = segs[2].p2;
-
-            const top = segs[0];
-            const right = segs[1];
-            const bottom = segs[2];
-            const left = segs[3];
-
-            const qs: [2]m.Quadrant = .{ m.quadrant(tl.x - x, tl.y - y), m.quadrant(br.x - x, br.y - y) };
-            if (qs[0] == qs[1]) {
-                switch (qs[0]) {
-                    .q_I => {
-                        walls.append(left) catch unreachable;
-                        walls.append(bottom) catch unreachable;
-                    },
-                    .q_II => {
-                        walls.append(bottom) catch unreachable;
-                        walls.append(right) catch unreachable;
-                    },
-                    .q_III => {
-                        walls.append(top) catch unreachable;
-                        walls.append(right) catch unreachable;
-                    },
-                    .q_IV => {
-                        walls.append(top) catch unreachable;
-                        walls.append(left) catch unreachable;
-                    },
-                    .none => unreachable,
-                }
-            } else {
-                if (br.x - x < 0) {
-                    walls.append(right) catch unreachable;
-                } else if (tl.x - x > 0) {
-                    walls.append(left) catch unreachable;
-                } else if (br.y - y < 0) {
-                    walls.append(bottom) catch unreachable;
-                } else if (tl.y - y > 0) {
-                    walls.append(top) catch unreachable;
-                }
-            }
+            collectFacingSegments(segs, &walls, x, y);
 
             for (walls.items) |*seg| {
                 seg.p1.angle = angleTo(seg.p1.x, seg.p1.y, x, y);
@@ -311,6 +235,50 @@ fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.W
                 seg.d = (seg.p1.x - x) * (seg.p1.x - x) + (seg.p1.y - y) * (seg.p1.y - y);
                 array_list.append(seg.*) catch unreachable;
             }
+        }
+    }
+}
+
+fn collectFacingSegments(segs: [4]m.WallSegment, facing: *std.ArrayList(m.WallSegment), x: f32, y: f32) void {
+    // determine facing walls based on relative position to player at x,y
+    const tl = segs[0].p1;
+    const br = segs[2].p2;
+
+    const top = segs[0];
+    const right = segs[1];
+    const bottom = segs[2];
+    const left = segs[3];
+
+    const qs: [2]m.Quadrant = .{ m.quadrant(tl.x - x, tl.y - y), m.quadrant(br.x - x, br.y - y) };
+    if (qs[0] == qs[1]) {
+        switch (qs[0]) {
+            .q_I => {
+                facing.append(left) catch unreachable;
+                facing.append(bottom) catch unreachable;
+            },
+            .q_II => {
+                facing.append(bottom) catch unreachable;
+                facing.append(right) catch unreachable;
+            },
+            .q_III => {
+                facing.append(top) catch unreachable;
+                facing.append(right) catch unreachable;
+            },
+            .q_IV => {
+                facing.append(top) catch unreachable;
+                facing.append(left) catch unreachable;
+            },
+            .none => unreachable,
+        }
+    } else {
+        if (br.x - x < 0) {
+            facing.append(right) catch unreachable;
+        } else if (tl.x - x > 0) {
+            facing.append(left) catch unreachable;
+        } else if (br.y - y < 0) {
+            facing.append(bottom) catch unreachable;
+        } else if (tl.y - y > 0) {
+            facing.append(top) catch unreachable;
         }
     }
 }
