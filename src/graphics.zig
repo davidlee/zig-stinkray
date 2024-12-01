@@ -217,37 +217,38 @@ fn drawVisibilityDebug(world: *m.World, range: usize) void {
     );
 }
 
-fn drawRectangles(world: *m.World) void {
-    for (world.rectangles.items) |r| {
-        rl.drawRectangleLines(
-            m.cast(i32, r.tl.x * CELL_SIZE),
-            m.cast(i32, r.tl.y * CELL_SIZE),
-            m.cast(i32, (r.br.x - r.tl.x) * CELL_SIZE),
-            m.cast(i32, (r.br.y - r.tl.y) * CELL_SIZE),
-            rl.Color.init(0, 255, 0, m.cast(u8, frame_count % 100)),
-        );
-    }
-}
-const distWithPoint = struct {
-    f32,
-    m.Uvec2,
-};
+// fn drawRectangles(world: *m.World) void {
+//     for (world.rectangles.items) |r| {
+//         rl.drawRectangleLines(
+//             m.cast(i32, r.tl.x * CELL_SIZE),
+//             m.cast(i32, r.tl.y * CELL_SIZE),
+//             m.cast(i32, (r.br.x - r.tl.x) * CELL_SIZE),
+//             m.cast(i32, (r.br.y - r.tl.y) * CELL_SIZE),
+//             rl.Color.init(0, 255, 0, m.cast(u8, frame_count % 100)),
+//         );
+//     }
+// }
 
-fn cmpDistWithPoint(_: void, a: distWithPoint, b: distWithPoint) bool {
-    return a[0] < b[0];
-}
+// const distWithPoint = struct {
+//     f32,
+//     m.Uvec2,
+// };
 
-fn drawEdgeVerticesNearPlayer(world: *m.World, range: usize) void {
-    var al = std.ArrayList(m.Uvec2).init(world.allocator);
-    defer al.deinit();
+// fn cmpDistWithPoint(_: void, a: distWithPoint, b: distWithPoint) bool {
+//     return a[0] < b[0];
+// }
 
-    findEdgeVerticesNearPlayer(world, &al, range);
+// fn drawEdgeVerticesNearPlayer(world: *m.World, range: usize) void {
+//     var al = std.ArrayList(m.Uvec2).init(world.allocator);
+//     defer al.deinit();
 
-    if (al.items.len > 0) {
-        const d = al.items[frame_count % al.items.len];
-        drawLineFromPlayerTo(world, d.x, d.y, 40);
-    }
-}
+//     findEdgeVerticesNearPlayer(world, &al, range);
+
+//     if (al.items.len > 0) {
+//         const d = al.items[frame_count % al.items.len];
+//         drawLineFromPlayerTo(world, d.x, d.y, 40);
+//     }
+// }
 
 fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.WallSegment), x: f32, y: f32, range: usize) void {
     const r: f32 = @floatFromInt(range);
@@ -411,143 +412,6 @@ fn rectIntersectsPoint(x1: f32, y1: f32, x2: f32, y2: f32, px: f32, py: f32) boo
 //         // you're on a grid and the segments are similarly sized, then
 //         // using distance will be a simpler and faster implementation.
 //     // }
-
-fn getWallsFacing(world: *m.World, rects: *std.ArrayList(m.URect), px: f32, py: f32) void {
-    // var walls = std.ArrayList(m.Uvec2).init(world.allocator);
-    // defer walls.deinit();
-
-    for (rects.items) |rect| {
-        const vertices = getRectEdgeVertices(world, rect, px, py);
-        var last: ?m.Uvec2 = undefined;
-        for (vertices) |maybe_v| {
-            if (maybe_v) |v| {
-                if (last) |l| {
-                    rl.drawLine(
-                        m.cast(i32, l.x * CELL_SIZE),
-                        m.cast(i32, l.y * CELL_SIZE),
-                        m.cast(i32, v.x * CELL_SIZE),
-                        m.cast(i32, v.y * CELL_SIZE),
-                        rl.Color.init(0, 255, 0, 255),
-                    );
-                }
-                // walls.append(v) catch unreachable;
-                last = v;
-            }
-        }
-    }
-}
-
-// TODO this should find vertices within range as a bounding box, not a radius.
-fn findEdgeVerticesNearPlayer(world: *m.World, arraylist: *std.ArrayList(m.Uvec2), range: usize) void {
-    var distances = std.ArrayList(distWithPoint).init(world.allocator);
-    defer distances.deinit();
-
-    // const pp = world.player.position.uvec2();
-
-    // TODO pre-cull, cache, or pre-sort proximate rectangles to avoid
-    // implausible performance on very large maps.
-    // look into spatial hashing / spatial indexing.
-
-    for (world.rectangles.items) |rect| {
-        const vertices = getRectEdgeVertices(world, rect, world.player.position.x, world.player.position.y);
-
-        for (vertices) |maybe_v| {
-            if (maybe_v) |v| {
-                const d = distanceOfUvec2s(world.player.position.uvec2(), v);
-                if (d < m.flint(f32, range)) {
-                    distances.append(.{ d, v }) catch unreachable;
-                }
-            }
-        }
-    }
-    std.mem.sort(distWithPoint, distances.items, {}, cmpDistWithPoint);
-
-    for (distances.items) |d| {
-        if (d[0] < @as(f32, @floatFromInt(range))) {
-            arraylist.append(d[1]) catch unreachable;
-            if (true) { // draw debug lines
-                drawLineFromPlayerTo(world, d[1].x, d[1].y, 40);
-
-                drawLineToBoundingBox(world, d[1].x, d[1].y, m.cast(i32, range * CELL_SIZE), 40);
-            }
-        }
-    }
-}
-
-fn getFacingSegments(world: *m.World, segments: [4]m.WallSegment, px: f32, py: f32) [2]?m.WallSegment {
-    _ = world;
-    const tl = segments[0].p1;
-    const br = segments[1].p2;
-
-    const top = segments[0];
-    const bot = segments[2];
-    const rgt = segments[1];
-    const lft = segments[3];
-
-    const q1 = m.quadrant(tl.x - px, tl.y - py);
-    const q2 = m.quadrant(br.x - px, br.y - py);
-
-    if (q1 == q2) { // rect wholly in one quadrant
-        return switch (q1) {
-            .q_I => .{ lft, bot },
-            .q_II => .{ bot, rgt },
-            .q_III => .{ top, rgt },
-            .q_IV => .{ lft, top },
-            .none => unreachable,
-        };
-    } else { // rect spans two quadrants; is in one of the four cardinal directions
-        if (br.x - px < 0) { // left of player
-            return .{ rgt, null };
-        } else if (tl.x - px > 0) { // right of player
-            return .{ lft, null };
-        } else if (br.y - py < 0) { // above player
-            return .{ bot, null };
-        } else if (tl.y - py > 0) { // below player
-            return .{ top, null };
-        }
-    }
-    unreachable;
-}
-
-fn getRectEdgeVertices(world: *m.World, rect: m.URect, px: f32, py: f32) [3]?m.Uvec2 {
-    const tl = rect.tl;
-    const br = rect.br;
-    const tr = m.Uvec2{ .x = br.x, .y = tl.y };
-    const bl = m.Uvec2{ .x = tl.x, .y = br.y };
-
-    const rel_x: f32 = m.flint(f32, tl.x) - px;
-    const rel_y: f32 = m.flint(f32, tl.y) - py;
-    const q1 = m.quadrant(rel_x, rel_y);
-
-    const rel_x2: f32 = m.flint(f32, br.x) - px;
-    const rel_y2: f32 = m.flint(f32, br.y) - py;
-    const q2 = m.quadrant(rel_x2, rel_y2);
-
-    // TODO return 3 vertices when rect is diagonal to the player.
-    // TODO figure out how to return variable length array - should I use a null or an arraylist?
-
-    if (q1 == q2) { // rect wholly in one quadrant
-        return switch (q1) {
-            .q_I => .{ tl, bl, br },
-            .q_II => .{ bl, br, tr },
-            .q_III => .{ tl, tr, br },
-            .q_IV => .{ bl, tl, tr },
-            .none => unreachable,
-        };
-    } else { // rect spans two quadrants; is in one of the four cardinal directions
-        if (rel_x2 < 0) { // left of player
-            return .{ tr, br, null };
-        } else if (rel_x > 0) { // right of player
-            return .{ tl, bl, null };
-        } else if (rel_y2 < 0) { // above player
-            return .{ bl, br, null };
-        } else if (rel_y > 0) { // below player
-            return .{ tl, tr, null };
-        }
-    }
-    _ = .{world};
-    unreachable;
-}
 
 fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
     const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE_F);
