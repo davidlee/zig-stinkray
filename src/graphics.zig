@@ -168,10 +168,10 @@ fn prepareWallSegments(world: *m.World, range: usize) void {
         rl.drawLine(m.intf(i32, s.p1.x * CELL_SIZE), m.intf(i32, s.p1.y * CELL_SIZE), m.intf(i32, s.p2.x * CELL_SIZE), m.intf(i32, s.p2.y * CELL_SIZE), rl.Color.yellow);
     }
     for (endpoints.items) |*ep| {
-        drawLineFromPlayerTo(world, m.intf(usize, ep.x), m.intf(usize, ep.y), rl.Color.init(255, 0, 0, 80));
+        drawLineFromPlayerTo(world, ep.x, ep.y, rl.Color.init(255, 0, 0, 80));
     }
     const e = endpoints.items[frame_count % endpoints.items.len];
-    drawLineFromPlayerTo(world, m.intf(usize, e.x), m.intf(usize, e.y), rl.Color.white);
+    drawLineFromPlayerTo(world, e.x, e.y, rl.Color.white);
 
     // ok now we just have to remove non-nearest segments
     // ie when a line to them from the viewer crosses another segment
@@ -381,38 +381,11 @@ fn segmentInFrontOf(a: m.WallSegment, b: m.WallSegment, relativeTo: m.Vec2) bool
     // intersectionDetected(a, b);
     return false;
 }
-fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, color: rl.Color) void {
-    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE_F);
-    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE_F);
 
-    const pt = m.Ivec2{
-        .x = m.cast(i32, x * CELL_SIZE),
-        .y = m.cast(i32, y * CELL_SIZE),
-    };
-    rl.drawLine(px, py, pt.x, pt.y, color);
-}
-
-const half_pi: f32 = std.math.pi / @as(f32, 2.0);
-
-fn drawLineToBoundingBox(world: *m.World, x: usize, y: usize, range: i32, alpha: u8) void {
-    const px: f32 = (world.player.position.x) * CELL_SIZE_F;
-    const py: f32 = (world.player.position.y) * CELL_SIZE_F;
-
-    const angle: f32 = angleTo(px, py, m.flint(f32, x) * CELL_SIZE_F, m.flint(f32, y) * CELL_SIZE_F);
-
-    // brutishly finding the distance to the edge of the range rectangle
-    const len1: f32 = @abs(m.flint(f32, range) / std.math.sin(half_pi - angle));
-    const len2: f32 = @abs(m.flint(f32, range) / std.math.cos(half_pi - angle));
-    const len = @min(len1, len2);
-
-    const tx: f32 = px + std.math.cos(angle) * len;
-    const ty: f32 = py + std.math.sin(angle) * len;
-
-    rl.drawLine(
-        @intFromFloat(px),
-        @intFromFloat(py),
-        @intFromFloat(tx),
-        @intFromFloat(ty),
-        rl.Color.init(0, 255, 255, alpha),
+fn drawLineFromPlayerTo(world: *m.World, x: f32, y: f32, color: rl.Color) void {
+    rl.drawLineV(
+        rl.Vector2.init(world.player.position.x * CELL_SIZE_F, world.player.position.y * CELL_SIZE_F),
+        rl.Vector2.init(x * CELL_SIZE_F, y * CELL_SIZE_F),
+        color,
     );
 }
