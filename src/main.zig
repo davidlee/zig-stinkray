@@ -231,6 +231,10 @@ pub const WallEndpoint = struct {
     angle: f32 = undefined,
     // segment: *WallSegment = undefined,
     top_left: bool = false,
+
+    pub fn cmp(_: void, self: WallEndpoint, other: WallEndpoint) bool {
+        return self.angle < other.angle;
+    }
 };
 
 pub const WallSegment = struct {
@@ -238,10 +242,8 @@ pub const WallSegment = struct {
     p2: *WallEndpoint,
     d: f32 = undefined, // distance squared, avoiding sqrt as an optimisation
 
-    pub fn cmpMinAngle(_: void, self: WallSegment, other: WallSegment) bool {
-        const a = @min(self.p1.angle, self.p2.angle);
-        const b = @min(other.p1.angle, other.p2.angle);
-        return a < b;
+    pub fn cmp(_: void, self: WallSegment, other: WallSegment) bool {
+        return self.p1.angle < other.p1.angle;
     }
 };
 
