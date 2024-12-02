@@ -191,10 +191,8 @@ pub const CellStore = struct {
                 const dx = x0 + col;
                 const i = start_index + vert_index_offset + col;
 
-                const cell = self._get(i) catch
-                    {
+                const cell = self._get(i) catch {
                     std.log.debug("getRect: dx,dy {d},{d} -- i {d} out of bounds for {d}", .{ dx, dy, i, self._arraylist.items.len });
-
                     unreachable;
                 };
                 al.appendAssumeCapacity(RectAddr{

@@ -20,6 +20,7 @@ var viewportWidth: usize = 80;
 var viewportHeight: usize = 80;
 var viewport: rl.RenderTexture = undefined;
 var frame_count: usize = 0;
+var bounding_box_endpoints: [8]m.WallEndpoint = undefined;
 
 pub fn init(world: *m.World) void {
     _ = world;
@@ -149,53 +150,32 @@ fn drawVisibilityPolygon(world: *m.World, range: usize) void {
     var output = std.ArrayList(m.Vec2).init(world.allocator);
     defer output.deinit();
 
-    var rects = std.ArrayList(m.URect).init(world.allocator);
-    defer rects.deinit();
-    findRectsIntersectingSquareAround(world, &rects, viewpoint.x, viewpoint.y, range);
-
     var segments = std.ArrayList(m.WallSegment).init(world.allocator);
     defer segments.deinit();
     findWallSegmentsInBoundingBox(world, &segments, viewpoint.x, viewpoint.y, range);
 
     for (segments.items) |s| {
-        drawLineFromPlayerTo(world, m.intf(usize, s.p1.x), m.intf(usize, s.p1.y), 255);
-        drawLineFromPlayerTo(world, m.intf(usize, s.p2.x), m.intf(usize, s.p2.y), 255);
+        std.debug.print("segment: {d} {d} {d} {d}\n", .{ s.p1.x, s.p1.y, s.p2.x, s.p2.y });
+        drawLineFromPlayerTo(world, m.intf(usize, s.p1.x), m.intf(usize, s.p1.y), rl.Color.red);
+        drawLineFromPlayerTo(world, m.intf(usize, s.p2.x), m.intf(usize, s.p2.y), rl.Color.green);
         rl.drawLine(
             m.intf(i32, s.p1.x * CELL_SIZE),
             m.intf(i32, s.p1.y * CELL_SIZE),
             m.intf(i32, s.p2.x * CELL_SIZE),
             m.intf(i32, s.p2.y * CELL_SIZE),
-            rl.Color.init(255, 255, 0, 255),
+            rl.Color.yellow,
         );
     }
 
     _ = .{ range, output, viewpoint };
 }
 
-fn drawVisibilityDebug(world: *m.World, range: usize) void {
-    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE);
-    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE);
-
-    const fc: i32 = @intCast(frame_count);
-    const alpha = m.cast(u8, @abs(@rem(fc, 100) - 50) / 1);
-    const k: i32 = m.cast(i32, range * CELL_SIZE * 2);
-    // draw a circle at visible range around the player
-    rl.drawCircleLines(px, py, @floatFromInt(range * CELL_SIZE), rl.Color.init(0, 255, 0, alpha));
-    rl.drawRectangleLines(
-        px - @divFloor(k, 2),
-        py - @divFloor(k, 2),
-        k,
-        k,
-        rl.Color.init(255, 255, 0, alpha),
-    );
-}
-
 fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.WallSegment), x: f32, y: f32, range: usize) void {
     const r: f32 = @floatFromInt(range);
-    const bx1 = x - r;
-    const bx2 = x + r;
-    const by1 = y - r;
-    const by2 = y + r;
+    const bx1 = @min(@max(0, x - r), m.flint(f32, world.cells.getWidth()));
+    const bx2 = @min(@max(0, x + r), m.flint(f32, world.cells.getWidth()));
+    const by1 = @min(@max(0, y - r), m.flint(f32, world.cells.getHeight()));
+    const by2 = @min(@max(0, y + r), m.flint(f32, world.cells.getHeight()));
 
     var segs: [4]m.WallSegment = undefined;
 
@@ -237,6 +217,42 @@ fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.W
             }
         }
     }
+
+    // add segments to represent the bounding box
+    // these are transient, so .. bit of a hack
+    // we keep the endpoints in a separate array, bounding_box_endpoints
+    // that way we can reference them from the segment structs
+    // without corrupting the "real" endpoints
+    {
+        const tl = m.WallEndpoint{ .x = bx1, .y = by1 };
+        const tr = m.WallEndpoint{ .x = bx2, .y = by1 };
+        const br = m.WallEndpoint{ .x = bx2, .y = by2 };
+        const bl = m.WallEndpoint{ .x = bx1, .y = by2 };
+
+        addBoundingSegment(array_list, x, y, tl.x, tl.y, tr.x, tr.y, 0);
+        addBoundingSegment(array_list, x, y, tr.x, tr.y, br.x, br.y, 1);
+        addBoundingSegment(array_list, x, y, br.x, br.y, bl.x, bl.y, 2);
+        addBoundingSegment(array_list, x, y, bl.x, bl.y, tl.x, tl.y, 3);
+    }
+}
+
+fn addBoundingSegment(array_list: *std.ArrayList(m.WallSegment), x: f32, y: f32, x1: f32, y1: f32, x2: f32, y2: f32, index: usize) void {
+    std.debug.assert(x1 >= 0);
+    std.debug.assert(x2 >= 0);
+    std.debug.assert(y1 >= 0);
+    std.debug.assert(y2 >= 0);
+    const p1 = m.WallEndpoint{ .x = x1, .y = y1 };
+    const p2 = m.WallEndpoint{ .x = x2, .y = y2 };
+    // ugly dance to ensure seg gets a live reference
+    bounding_box_endpoints[index] = p1;
+    bounding_box_endpoints[index + 4] = p2;
+    var seg = m.WallSegment{ .p1 = &bounding_box_endpoints[index], .p2 = &bounding_box_endpoints[index + 4] };
+
+    seg.p1.angle = angleTo(seg.p1.x, seg.p1.y, x, y);
+    seg.p2.angle = angleTo(seg.p2.x, seg.p2.y, x, y);
+    seg.d = (seg.p1.x - x) * (seg.p1.x - x) + (seg.p1.y - y) * (seg.p1.y - y);
+
+    array_list.append(seg) catch unreachable;
 }
 
 fn collectFacingSegments(segs: [4]m.WallSegment, facing: *std.ArrayList(m.WallSegment), x: f32, y: f32) void {
@@ -283,21 +299,39 @@ fn collectFacingSegments(segs: [4]m.WallSegment, facing: *std.ArrayList(m.WallSe
     }
 }
 
-fn findRectsIntersectingSquareAround(
-    world: *m.World,
-    array_list: *std.ArrayList(m.URect),
-    x: f32,
-    y: f32,
-    range: usize,
-) void {
-    const r: f32 = @floatFromInt(range);
-    for (world.rectangles.items) |rect| {
-        if (rectIntersectsPoint(x - r, y - r, x + r, y + r, m.flint(f32, rect.tl.x), m.flint(f32, rect.tl.y)) or
-            rectIntersectsPoint(x - r, y - r, x + r, y + r, m.flint(f32, rect.br.x), m.flint(f32, rect.br.y)))
-        {
-            array_list.append(rect) catch unreachable;
-        }
-    }
+fn drawVisibilityDebug(world: *m.World, range: usize) void {
+    const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE);
+    const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE);
+
+    const fc: i32 = @intCast(frame_count);
+    const alpha = m.cast(u8, @abs(@rem(fc, 100) - 50) / 1);
+    const k: i32 = m.cast(i32, range * CELL_SIZE * 2);
+    // draw a circle at visible range around the player
+    rl.drawCircleLines(px, py, @floatFromInt(range * CELL_SIZE), rl.Color.init(0, 255, 0, alpha));
+    rl.drawRectangleLines(
+        px - @divFloor(k, 2),
+        py - @divFloor(k, 2),
+        k,
+        k,
+        rl.Color.init(255, 255, 0, alpha),
+    );
+
+    // draw fov arc for player
+
+    const c = rl.Color.init(255, 255, 255, 40);
+
+    const centre = rl.Vector2.init(world.player.position.x * CELL_SIZE_F, world.player.position.y * CELL_SIZE_F);
+
+    const a1: f32 = @mod(360 - 90 + world.player.rotation - world.player.fov_angle / 2, 360);
+    const a2: f32 = a1 + world.player.fov_angle;
+
+    rl.drawCircleSectorLines(centre, 1000, a1, a2, 8, c);
+
+    const r: f32 = world.player.fov_radius * CELL_SIZE_F;
+    const b1: f32 = 15 + world.player.rotation;
+    const b2: f32 = b1 - (180 + 15 * 2);
+
+    rl.drawCircleSectorLines(centre, r, b1, b2, 24, c);
 }
 
 fn rectIntersectsPoint(x1: f32, y1: f32, x2: f32, y2: f32, px: f32, py: f32) bool {
@@ -357,7 +391,7 @@ fn rectIntersectsPoint(x1: f32, y1: f32, x2: f32, y2: f32, px: f32, py: f32) boo
 //         // using distance will be a simpler and faster implementation.
 //     // }
 
-fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
+fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, color: rl.Color) void {
     const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE_F);
     const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE_F);
 
@@ -365,7 +399,7 @@ fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, alpha: u8) void {
         .x = m.cast(i32, x * CELL_SIZE),
         .y = m.cast(i32, y * CELL_SIZE),
     };
-    rl.drawLine(px, py, pt.x, pt.y, rl.Color.init(255, 255, 0, alpha));
+    rl.drawLine(px, py, pt.x, pt.y, color);
 }
 
 const half_pi: f32 = std.math.pi / @as(f32, 2.0);

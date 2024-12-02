@@ -26,7 +26,7 @@ pub const World = struct {
         self.wall_endpoints = std.ArrayList(WallEndpoint).init(alloc);
         self.endpoints = EndpointList{};
 
-        player.init(self);
+        self.player.init(self);
         wgen.init(self);
         gfx.init(self);
     }

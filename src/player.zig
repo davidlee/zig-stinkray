@@ -28,20 +28,29 @@ const Command = union(enum) {
 };
 
 pub const Player = struct {
-    health: i32 = 10,
+    health: i32 = 100,
     inventory: struct {} = .{},
     position: m.Vec3 = .{ .x = 0, .y = 0, .z = 0 },
     velocity: m.Vec3 = .{ .x = 0, .y = 0, .z = 0 },
     rotation: f32 = 0,
     speed: f32 = 0,
+    fov_angle: f32 = 0,
+    fov_radius: f32 = 0,
     mouse_look_mode: bool = false,
 
+    pub fn init(self: *Player, world: *m.World) void {
+        _ = world;
+        self.fov_angle = 110;
+        self.fov_radius = 5;
+    }
+
     pub fn turn(self: *Player, direction: MovementDirection) void {
-        self.rotation += switch (direction) {
+        const delta: f32 = switch (direction) {
             .Right => 5,
             .Left => -5,
             else => 0,
         };
+        self.rotation = @mod(360 + self.rotation + delta, 360);
     }
 
     pub fn move(self: *Player, world: *m.World, direction: MovementDirection) void {
@@ -74,7 +83,3 @@ const MoveCommandError = error{
     OutOfBounds,
     ImpassableTerrain,
 };
-
-pub fn init(world: *m.World) void {
-    _ = world;
-}
