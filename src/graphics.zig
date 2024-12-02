@@ -155,8 +155,9 @@ fn prepareWallSegments(world: *m.World, range: usize) void {
 
     var segments = std.ArrayList(m.WallSegment).init(world.allocator);
     defer segments.deinit();
-    findWallSegmentsInBoundingBox(world, &segments, viewpoint.x, viewpoint.y, range);
 
+    findWallSegmentsInBoundingBox(world, &segments, viewpoint.x, viewpoint.y, range);
+    // sort by the min angle of the two endpoints
     std.mem.sort(m.WallSegment, segments.items, {}, m.WallSegment.cmpMinAngle);
 
     // ok now we just have to remove non-nearest segments
@@ -315,91 +316,73 @@ fn drawVisibilityDebug(world: *m.World, range: usize) void {
     const fc: i32 = @intCast(frame_count);
     const alpha = m.cast(u8, @abs(@rem(fc, 100) - 50) / 1);
     const k: i32 = m.cast(i32, range * CELL_SIZE * 2);
+
     // draw a circle at visible range around the player
     rl.drawCircleLines(px, py, @floatFromInt(range * CELL_SIZE), rl.Color.init(0, 255, 0, alpha));
-    rl.drawRectangleLines(
-        px - @divFloor(k, 2),
-        py - @divFloor(k, 2),
-        k,
-        k,
-        rl.Color.init(255, 255, 0, alpha),
-    );
+    rl.drawRectangleLines(px - @divFloor(k, 2), py - @divFloor(k, 2), k, k, rl.Color.init(255, 255, 0, alpha));
 
     // draw fov arc for player
-
     const c = rl.Color.init(255, 255, 255, 40);
-
     const centre = rl.Vector2.init(world.player.position.x * CELL_SIZE_F, world.player.position.y * CELL_SIZE_F);
-
     const a1: f32 = @mod(360 - 90 + world.player.rotation - world.player.fov_angle / 2, 360);
     const a2: f32 = a1 + world.player.fov_angle;
-
     rl.drawCircleSectorLines(centre, 1000, a1, a2, 8, c);
-
     const r: f32 = world.player.fov_radius * CELL_SIZE_F;
     const b1: f32 = 15 + world.player.rotation;
     const b2: f32 = b1 - (180 + 15 * 2);
-
     rl.drawCircleSectorLines(centre, r, b1, b2, 24, c);
-}
-
-fn rectIntersectsPoint(x1: f32, y1: f32, x2: f32, y2: f32, px: f32, py: f32) bool {
-    return (x1 <= px and x2 >= px and y1 <= py and y2 >= py);
 }
 
 //
 // utility functions
 //
 
-// https://doc.cgal.org/latest/Visibility_2/index.html
+fn angleTo(x1: f32, y1: f32, x2: f32, y2: f32) f32 {
+    return std.math.atan2(y2 - y1, x2 - x1);
+}
 
-// // Return p*(1-f) + q*f
-// static private function interpolate(p:Point, q:Point, f:Float):Point {
-//     return new Point(p.x*(1-f) + q.x*f, p.y*(1-f) + q.y*f);
-// }
+fn distanceOfUvec2s(a: m.Uvec2, b: m.Uvec2) f32 {
+    const ax: f32 = @floatFromInt(a.x);
+    const ay: f32 = @floatFromInt(a.y);
+    const bx: f32 = @floatFromInt(b.x);
+    const by: f32 = @floatFromInt(b.y);
+    return std.math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+}
 
-//   // Helper: do we know that segment a is in front of b?
-//     // Implementation not anti-symmetric (that is to say,
-//     // _segment_in_front_of(a, b) != (!_segment_in_front_of(b, a)).
-//     // Also note that it only has to work in a restricted set of cases
-//     // in the visibility algorithm; I don't think it handles all
-//     // cases. See http://www.redblobgames.com/articles/visibility/segment-sorting.html
-//     private function _segment_in_front_of(a:Segment, b:Segment, relativeTo:Point):Bool {
-//         // NOTE: we slightly shorten the segments so that
-//         // intersections of the endpoints (common) don't count as
-//         // intersections in this algorithm
-//         var A1 = leftOf(a, interpolate(b.p1, b.p2, 0.01));
-//         var A2 = leftOf(a, interpolate(b.p2, b.p1, 0.01));
-//         var A3 = leftOf(a, relativeTo);
-//         var B1 = leftOf(b, interpolate(a.p1, a.p2, 0.01));
-//         var B2 = leftOf(b, interpolate(a.p2, a.p1, 0.01));
-//         var B3 = leftOf(b, relativeTo);
+fn rectIntersectsPoint(x1: f32, y1: f32, x2: f32, y2: f32, px: f32, py: f32) bool {
+    return (x1 <= px and x2 >= px and y1 <= py and y2 >= py);
+}
 
-//         // NOTE: this algorithm is probably worthy of a short article
-//         // but for now, draw it on paper to see how it works. Consider
-//         // the line A1-A2. If both B1 and B2 are on one side and
-//         // relativeTo is on the other side, then A is in between the
-//         // viewer and B. We can do the same with B1-B2: if A1 and A2
-//         // are on one side, and relativeTo is on the other side, then
-//         // B is in between the viewer and A.
-//         if (B1 == B2 && B2 != B3) return true;
-//         if (A1 == A2 && A2 == A3) return true;
-//         if (A1 == A2 && A2 != A3) return false;
-//         if (B1 == B2 && B2 == B3) return false;
+fn interpolate(pp: m.Vec2, pq: m.Vec2, f: f32) m.Vec2 {
+    return m.Vec2{ .x = pp.x * (1 - f) + pq.x * f, .y = pp.y * (1 - f) + pq.y * f };
+}
 
-//         // If A1 != A2 and B1 != B2 then we have an intersection.
-//         // Expose it for the GUI to show a message. A more robust
-//         // implementation would split segments at intersections so
-//         // that part of the segment is in front and part is behind.
-//         demo_intersectionsDetected.push([a.p1, a.p2, b.p1, b.p2]);
-//         return false;
+fn leftOf(s: m.WallSegment, pt: m.Vec2) bool {
+    const cross = (s.p2.x - s.p1.x) * (pt.y - s.p1.y) - (s.p2.y - s.p1.y) * (pt.x - s.p1.x);
+    return cross < 0;
+}
 
-//         // NOTE: previous implementation was a.d < b.d. That's simpler
-//         // but trouble when the segments are of dissimilar sizes. If
-//         // you're on a grid and the segments are similarly sized, then
-//         // using distance will be a simpler and faster implementation.
-//     // }
+// TODO split segments at intersection
+fn intersectionDetected(a: m.WallSegment, b: m.WallSegment) void {
+    _ = a;
+    _ = b;
+}
 
+fn segmentInFrontOf(a: m.WallSegment, b: m.WallSegment, relativeTo: m.Vec2) bool {
+    const a1 = leftOf(a, interpolate(b.p1, b.p2, 0.01));
+    const a2 = leftOf(a, interpolate(b.p2, b.p1, 0.01));
+    const a3 = leftOf(a, relativeTo);
+    const b1 = leftOf(b, interpolate(a.p1, a.p2, 0.01));
+    const b2 = leftOf(b, interpolate(a.p2, a.p1, 0.01));
+    const b3 = leftOf(b, relativeTo);
+    if (b1 == b2 and b2 != b3) return true;
+    if (a1 == a2 and a2 == a3) return true;
+    if (a1 == a2 and a2 != a3) return false;
+    if (b1 == b2 and b2 == b3) return false;
+
+    // intersectionDetected(a, b);
+    return false;
+}
 fn drawLineFromPlayerTo(world: *m.World, x: usize, y: usize, color: rl.Color) void {
     const px: i32 = @intFromFloat(world.player.position.x * CELL_SIZE_F);
     const py: i32 = @intFromFloat(world.player.position.y * CELL_SIZE_F);
@@ -417,7 +400,7 @@ fn drawLineToBoundingBox(world: *m.World, x: usize, y: usize, range: i32, alpha:
     const px: f32 = (world.player.position.x) * CELL_SIZE_F;
     const py: f32 = (world.player.position.y) * CELL_SIZE_F;
 
-    const angle: f32 = angleBetweenPoints(px, py, m.flint(f32, x) * CELL_SIZE_F, m.flint(f32, y) * CELL_SIZE_F);
+    const angle: f32 = angleTo(px, py, m.flint(f32, x) * CELL_SIZE_F, m.flint(f32, y) * CELL_SIZE_F);
 
     // brutishly finding the distance to the edge of the range rectangle
     const len1: f32 = @abs(m.flint(f32, range) / std.math.sin(half_pi - angle));
@@ -434,27 +417,4 @@ fn drawLineToBoundingBox(world: *m.World, x: usize, y: usize, range: i32, alpha:
         @intFromFloat(ty),
         rl.Color.init(0, 255, 255, alpha),
     );
-}
-
-fn angleFromPlayerTo(world: *m.World, x: usize, y: usize) f32 {
-    return std.math.atan2(
-        m.flint(f32, x) - world.player.position.y,
-        m.flint(f32, y) - world.player.position.x,
-    );
-}
-
-fn angleTo(x1: f32, y1: f32, x2: f32, y2: f32) f32 {
-    return std.math.atan2(y2 - y1, x2 - x1);
-}
-
-fn angleBetweenPoints(x1: f32, y1: f32, x2: f32, y2: f32) f32 {
-    return std.math.atan2(y2 - y1, x2 - x1);
-}
-
-fn distanceOfUvec2s(a: m.Uvec2, b: m.Uvec2) f32 {
-    const ax: f32 = @floatFromInt(a.x);
-    const ay: f32 = @floatFromInt(a.y);
-    const bx: f32 = @floatFromInt(b.x);
-    const by: f32 = @floatFromInt(b.y);
-    return std.math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
 }

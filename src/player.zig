@@ -75,7 +75,6 @@ pub const Player = struct {
 
         if (world.cells.isValidPlayerPosition(new_pos) catch false) {
             self.position = new_pos;
-            std.debug.print("new pos: {d} {d} {d}\n", .{ x1, y1, z1 });
         }
     }
 };
