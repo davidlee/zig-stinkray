@@ -147,8 +147,8 @@ pub fn identifyBlockingRectangles(world: *m.World) void {
 }
 
 fn addSegment(world: *m.World, x1: f32, y1: f32, x2: f32, y2: f32, top_left: bool) void {
-    var n1 = world.allocator.create(m.EndpointList.Node) catch unreachable;
-    var n2 = world.allocator.create(m.EndpointList.Node) catch unreachable;
+    var n1 = world.allocator.create(m.World.EndpointList.Node) catch unreachable;
+    var n2 = world.allocator.create(m.World.EndpointList.Node) catch unreachable;
     n1.data.x = x1;
     n1.data.y = y1;
     n1.data.top_left = top_left;

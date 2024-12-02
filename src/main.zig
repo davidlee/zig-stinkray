@@ -8,13 +8,16 @@ const wgen = @import("world_gen.zig");
 // const shadowcast = @import("shadowcast.zig");
 
 pub const World = struct {
+    // use a doubly linked list for the endpoints
+    // so our WallSegment structs have stable pointers to them
+    pub const EndpointList = std.DoublyLinkedList(WallEndpoint);
+
     cells: terrain.CellStore,
     player: player.Player,
     allocator: std.mem.Allocator,
     camera: rl.Camera2D,
     rectangles: std.ArrayList(URect),
     wall_segments: std.ArrayList(WallSegment),
-    wall_endpoints: std.ArrayList(WallEndpoint),
     endpoints: EndpointList,
 
     pub fn init(self: *World, alloc: std.mem.Allocator) void {
@@ -23,7 +26,6 @@ pub const World = struct {
 
         self.rectangles = std.ArrayList(URect).init(alloc);
         self.wall_segments = std.ArrayList(WallSegment).init(alloc);
-        self.wall_endpoints = std.ArrayList(WallEndpoint).init(alloc);
         self.endpoints = EndpointList{};
 
         self.player.init(self);
@@ -35,7 +37,6 @@ pub const World = struct {
         self.cells.deinit();
         self.rectangles.deinit();
         self.wall_segments.deinit();
-        self.wall_endpoints.deinit();
 
         {
             var it = self.endpoints.pop();
@@ -304,5 +305,3 @@ pub fn quadrant(x: anytype, y: anytype) Quadrant {
     }
     return .none;
 }
-
-pub const EndpointList = std.DoublyLinkedList(WallEndpoint);

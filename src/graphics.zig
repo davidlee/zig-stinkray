@@ -145,17 +145,15 @@ fn drawCell(cell: *const t.Cell, x: usize, y: usize) void {
 fn prepareWallSegments(world: *m.World, range: usize) void {
     const viewpoint: m.Vec2 = .{ .x = world.player.position.x, .y = world.player.position.y };
 
-    var output = std.ArrayList(m.Vec2).init(world.allocator);
-    defer output.deinit();
+    // var output = std.ArrayList(m.Vec2).init(world.allocator);
+    // defer output.deinit();
 
     var segments = std.ArrayList(m.WallSegment).init(world.allocator);
     defer segments.deinit();
+    findWallSegmentsInBoundingBox(world, &segments, viewpoint.x, viewpoint.y, range);
 
     var endpoints = std.ArrayList(m.WallEndpoint).init(world.allocator);
     defer endpoints.deinit();
-
-    findWallSegmentsInBoundingBox(world, &segments, viewpoint.x, viewpoint.y, range);
-
     for (segments.items) |*seg| {
         endpoints.append(seg.p1.*) catch unreachable;
         endpoints.append(seg.p2.*) catch unreachable;
@@ -164,22 +162,22 @@ fn prepareWallSegments(world: *m.World, range: usize) void {
     // sort so that endpoints are in order of angle
     std.mem.sort(m.WallEndpoint, endpoints.items, {}, m.WallEndpoint.cmp);
 
+    // draw debug lines
+    //
     for (segments.items) |s| {
         rl.drawLine(m.intf(i32, s.p1.x * CELL_SIZE), m.intf(i32, s.p1.y * CELL_SIZE), m.intf(i32, s.p2.x * CELL_SIZE), m.intf(i32, s.p2.y * CELL_SIZE), rl.Color.yellow);
     }
-
     for (endpoints.items) |*ep| {
         drawLineFromPlayerTo(world, m.intf(usize, ep.x), m.intf(usize, ep.y), rl.Color.init(255, 0, 0, 80));
     }
+    const e = endpoints.items[frame_count % endpoints.items.len];
+    drawLineFromPlayerTo(world, m.intf(usize, e.x), m.intf(usize, e.y), rl.Color.white);
 
     // ok now we just have to remove non-nearest segments
     // ie when a line to them from the viewer crosses another segment
     //
     // and fill in the triangles they generate
 
-    const j: usize = (frame_count % endpoints.items.len);
-    const e = endpoints.items[j];
-    drawLineFromPlayerTo(world, m.intf(usize, e.x), m.intf(usize, e.y), rl.Color.white);
 }
 
 fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.WallSegment), x: f32, y: f32, range: usize) void {
@@ -222,12 +220,6 @@ fn findWallSegmentsInBoundingBox(world: *m.World, array_list: *std.ArrayList(m.W
             defer walls.deinit();
             // cull rear walls
             collectFacingSegments(segs, &walls, x, y);
-
-            // note this data is transient but we keep it on the (persistent) segment struct
-            // it needs to be updated when e.g. the player moves
-
-            // NOTE HOWEVER - we want to sort segment endpoints by angle
-
             for (walls.items) |*seg| {
                 seg.p1.angle = angleTo(seg.p1.x, seg.p1.y, x, y);
                 seg.p2.angle = angleTo(seg.p2.x, seg.p2.y, x, y);
