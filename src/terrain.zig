@@ -153,7 +153,7 @@ pub const CellStore = struct {
         const pos = position.uvec3();
         const max = self.getSize();
 
-        if (pos.x >= 0 and pos.x <= max.x and pos.y >= 0 and pos.y <= max.y) {
+        if (pos.x >= 0 and pos.x <= max.x + 1 and pos.y >= 0 and pos.y <= max.y + 1) {
             if (try self.isPassable(pos.x, pos.y, pos.z)) {
                 return true;
             } else {
@@ -187,7 +187,7 @@ pub const CellStore = struct {
             const dy = y0 + row;
             const vert_index_offset = row * max.x;
             var col: usize = 0;
-            while (col < width and (x0 + col) < max.x) : (col += 1) {
+            while (col < width and (x0 + col) <= max.x) : (col += 1) {
                 const dx = x0 + col;
                 const i = start_index + vert_index_offset + col;
 

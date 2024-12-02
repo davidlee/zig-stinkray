@@ -237,6 +237,12 @@ pub const WallSegment = struct {
     p1: *WallEndpoint,
     p2: *WallEndpoint,
     d: f32 = undefined, // distance squared, avoiding sqrt as an optimisation
+
+    pub fn cmpMinAngle(_: void, self: WallSegment, other: WallSegment) bool {
+        const a = @min(self.p1.angle, self.p2.angle);
+        const b = @min(other.p1.angle, other.p2.angle);
+        return a < b;
+    }
 };
 
 pub const Quadrant = enum {

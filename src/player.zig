@@ -68,13 +68,14 @@ pub const Player = struct {
         // this causes a panic in math.clamp so we have to do things the long way
         // const broken: f32 = std.math.clamp(0, 50.249847, 50);
 
-        const x1: f32 = @min(m.flint(f32, max.x), @max(0, self.position.x + @cos(r) * dist));
-        const y1: f32 = @min(m.flint(f32, max.y), @max(0, self.position.y + @sin(r) * dist));
+        const x1: f32 = @min(m.flint(f32, max.x + 1), @max(0, self.position.x + @cos(r) * dist));
+        const y1: f32 = @min(m.flint(f32, max.y + 1), @max(0, self.position.y + @sin(r) * dist));
         const z1: f32 = self.position.z;
         const new_pos = m.Vec3{ .x = x1, .y = y1, .z = z1 };
 
         if (world.cells.isValidPlayerPosition(new_pos) catch false) {
             self.position = new_pos;
+            std.debug.print("new pos: {d} {d} {d}\n", .{ x1, y1, z1 });
         }
     }
 };
