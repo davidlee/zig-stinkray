@@ -7,10 +7,11 @@ const input = @import("input.zig");
 const wgen = @import("world_gen.zig");
 // const shadowcast = @import("shadowcast.zig");
 
+pub const EndpointList = std.DoublyLinkedList(WallEndpoint);
 pub const World = struct {
     // use a doubly linked list for the endpoints
     // so our WallSegment structs have stable pointers to them
-    pub const EndpointList = std.DoublyLinkedList(WallEndpoint);
+    // pub const EndpointList = std.DoublyLinkedList(WallEndpoint);
 
     cells: terrain.CellStore,
     player: player.Player,
