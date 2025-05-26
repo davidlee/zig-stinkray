@@ -1,6 +1,7 @@
 .{
-    .name = "ray",
+    .name = .ray,
     .version = "0.0.1",
+    .fingerprint = 0xfd0bf6521fac607f,
     .dependencies = .{
         .@"raylib-zig" = .{
             .path = "../raylib-zig",

@@ -14,19 +14,19 @@ fn keyPress(key: rl.KeyboardKey) bool {
 }
 
 pub fn handleKeyboard(world: *m.World) void {
-    if (keyPress(.key_up) or keyPress(.key_l)) {
+    if (keyPress(.up) or keyPress(.l)) {
         world.player.move(world, .Forward);
     }
 
-    if (keyPress(.key_down)) {
+    if (keyPress(.down)) {
         world.player.move(world, .Backward);
     }
 
-    if (keyPress(.key_left)) {
+    if (keyPress(.left)) {
         world.player.turn(.Left);
     }
 
-    if (keyPress(.key_right)) {
+    if (keyPress(.right)) {
         world.player.turn(.Right);
     }
 }
@@ -39,13 +39,13 @@ const MovementKeys = .{
 };
 
 pub fn handleMouse(world: *m.World) !void {
-    if (rl.isMouseButtonDown(rl.MouseButton.mouse_button_left)) {}
+    if (rl.isMouseButtonDown(rl.MouseButton.left)) {}
 
     // say mouse x while holding RMB rotates the player
     // and mouse y changes your speed (creeping, walking, running, sprinting)
     // endurance is a whole thing
 
-    if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_right)) {
+    if (rl.isMouseButtonPressed(rl.MouseButton.right)) {
         world.player.mouse_look_mode = !world.player.mouse_look_mode;
     }
 

@@ -13,26 +13,26 @@ pub fn build(b: *std.Build) !void {
     const raylib = raylib_dep.module("raylib");
     const raylib_artifact = raylib_dep.artifact("raylib");
 
-    //web exports are completely separate
-    if (target.query.os_tag == .emscripten) {
-        const exe_lib = rlz.emcc.compileForEmscripten(b, "ziggy_gd", "src/main.zig", target, optimize);
+    // //web exports are completely separate
+    // if (target.query.os_tag == .emscripten) {
+    //     const exe_lib = rlz.emcc.compileForEmscripten(b, "ziggy_gd", "src/main.zig", target, optimize);
 
-        exe_lib.linkLibrary(raylib_artifact);
-        exe_lib.root_module.addImport("raylib", raylib);
+    //     exe_lib.linkLibrary(raylib_artifact);
+    //     exe_lib.root_module.addImport("raylib", raylib);
 
-        // Note that raylib itself is not actually added to the exe_lib output file, so it also needs to be linked with emscripten.
-        const link_step = try rlz.emcc.linkWithEmscripten(b, &[_]*std.Build.Step.Compile{ exe_lib, raylib_artifact });
-        //this lets your program access files like "resources/my-image.png":
-        link_step.addArg("--embed-file");
-        link_step.addArg("resources/");
+    //     // Note that raylib itself is not actually added to the exe_lib output file, so it also needs to be linked with emscripten.
+    //     const link_step = try rlz.emcc.linkWithEmscripten(b, &[_]*std.Build.Step.Compile{ exe_lib, raylib_artifact });
+    //     //this lets your program access files like "resources/my-image.png":
+    //     link_step.addArg("--embed-file");
+    //     link_step.addArg("resources/");
 
-        b.getInstallStep().dependOn(&link_step.step);
-        const run_step = try rlz.emcc.emscriptenRunStep(b);
-        run_step.step.dependOn(&link_step.step);
-        const run_option = b.step("run", "Run ziggy_gd");
-        run_option.dependOn(&run_step.step);
-        return;
-    }
+    //     b.getInstallStep().dependOn(&link_step.step);
+    //     const run_step = try rlz.emcc.emscriptenRunStep(b);
+    //     run_step.step.dependOn(&link_step.step);
+    //     const run_option = b.step("run", "Run ziggy_gd");
+    //     run_option.dependOn(&run_step.step);
+    //     return;
+    // }
 
     const exe = b.addExecutable(.{ .name = "stinkray", .root_source_file = b.path("src/main.zig"), .optimize = optimize, .target = target });
 
