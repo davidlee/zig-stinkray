@@ -1,14 +1,17 @@
 .{
     .name = .ray,
+    .name = "ray",
     .version = "0.0.1",
-    .fingerprint = 0xfd0bf6521fac607f,
+    .fingerprint = 0xfd0bf6524ee51679,
+    .version = "0.0.2",
     .dependencies = .{
-        .@"raylib-zig" = .{
-            .path = "../raylib-zig",
-        },
         .znoise = .{
-            .url = "https://github.com/zig-gamedev/znoise/archive/main.tar.gz",
-            .hash = "12208e16c80366e2a2f8bd3f1c676b09bf47c157f4d0f0d6440555f9b74d8a9d79f7",
+            .url = "git+https://github.com/zig-gamedev/znoise?ref=main#96f9458c2da975a8bf1cdf95e819c7b070965198",
+            .hash = "znoise-0.3.0-dev-gK1op-mjAQAvffA1EcRD0GekpVpgN7Km5rquofgZ0bq7",
+        },
+        .raylib_zig = .{
+            .url = "git+https://github.com/Not-Nik/raylib-zig?ref=devel#d6c77762cbdebbf56d3ff101142048dfae2496c4",
+            .hash = "raylib_zig-5.6.0-dev-KE8REBMyBQCnQ9RBhHsoSKr97XmDHF84wx3g0UiMRDxj",
         },
     },
     .paths = .{""},

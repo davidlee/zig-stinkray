@@ -9,6 +9,9 @@ run:
 build: 
     zig build
   
+clean:
+    zig build --pristine
+    
 test: 
     zig test src/tests.zig
 
