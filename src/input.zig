@@ -32,10 +32,10 @@ pub fn handleKeyboard(world: *m.World) void {
 }
 
 const MovementKeys = .{
-    .{ rl.KeyboardKey.key_up, .Forward },
-    .{ rl.KeyboardKey.key_right, .Right },
-    .{ rl.KeyboardKey.key_down, .Backward },
-    .{ rl.KeyboardKey.key_left, .Left },
+    .{ rl.KeyboardKey.up, .Forward },
+    .{ rl.KeyboardKey.right, .Right },
+    .{ rl.KeyboardKey.down, .Backward },
+    .{ rl.KeyboardKey.left, .Left },
 };
 
 pub fn handleMouse(world: *m.World) !void {
