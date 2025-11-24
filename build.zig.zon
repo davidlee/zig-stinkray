@@ -1,6 +1,5 @@
 .{
     .name = .ray,
-    .name = "ray",
     .version = "0.0.1",
     .fingerprint = 0xfd0bf6524ee51679,
     .version = "0.0.2",
